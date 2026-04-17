@@ -1,0 +1,14 @@
+cat > .gitignore <<'EOF'
+node_modules/
+frontend/node_modules/
+.next/
+frontend/.next/
+out/
+dist/
+build/
+target/
+backend/target/
+.DS_Store
+.env
+.env.local
+EOF
