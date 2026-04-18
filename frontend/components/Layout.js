@@ -69,14 +69,69 @@ function subtitleForRoute(pathname) {
   return "";
 }
 
+const STAFF_STORAGE = {
+  name: "triageos_staff_name",
+  station: "triageos_staff_station",
+  status: "triageos_staff_status",
+};
+
+const STATION_OPTIONS = [
+  "Triage · Station 1 · Floor 2",
+  "Triage · Station 2 · Floor 3",
+  "ED · Fast track · Floor 1",
+];
+
 export default function Layout({ children }) {
   const router = useRouter();
   const [now, setNow] = useState(() => new Date());
+  const [nurseName, setNurseName] = useState("R. Morgan");
+  const [station, setStation] = useState(STATION_OPTIONS[1]);
+  const [nurseStatus, setNurseStatus] = useState("on-duty");
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 30000);
     return () => clearInterval(t);
   }, []);
+
+  useEffect(() => {
+    try {
+      const n = localStorage.getItem(STAFF_STORAGE.name);
+      const s = localStorage.getItem(STAFF_STORAGE.station);
+      const st = localStorage.getItem(STAFF_STORAGE.status);
+      if (n) setNurseName(n);
+      if (s && STATION_OPTIONS.includes(s)) setStation(s);
+      if (st === "on-duty" || st === "break" || st === "offline") setNurseStatus(st);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STAFF_STORAGE.name, nurseName);
+    } catch {
+      /* ignore */
+    }
+  }, [nurseName]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STAFF_STORAGE.station, station);
+    } catch {
+      /* ignore */
+    }
+  }, [station]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STAFF_STORAGE.status, nurseStatus);
+    } catch {
+      /* ignore */
+    }
+  }, [nurseStatus]);
+
+  const statusBadgeLabel =
+    nurseStatus === "on-duty" ? "On Duty" : nurseStatus === "break" ? "Break" : "Offline";
 
   const headerTitle = useMemo(() => {
     const path = router.pathname;
@@ -140,15 +195,79 @@ export default function Layout({ children }) {
             </div>
           </div>
 
-          <div className="medProfileCard">
-            <div className="medAvatar" aria-hidden>
-              NS
+          <section className="medStaffPanel" aria-label="Nurse station">
+            <header className="medStaffPanelBar">
+              <h2 className="medStaffPanelHeading">Nurse station</h2>
+              <div className="medStaffPresence" aria-live="polite">
+                <span
+                  className={`medStaffPresenceLed medStaffPresenceLed--${nurseStatus}`}
+                  title={`Presence: ${statusBadgeLabel}`}
+                  aria-hidden
+                />
+                <span className="medStaffPresenceText">{statusBadgeLabel}</span>
+              </div>
+            </header>
+
+            <div className="medStaffPanelBody" role="group" aria-label="Workstation and presence">
+              <div className="medStaffField">
+                <label className="medStaffFieldLabel" htmlFor="staff-station">
+                  Workstation
+                </label>
+                <select
+                  id="staff-station"
+                  className="uiSelect medStaffSelect"
+                  value={station}
+                  onChange={(e) => setStation(e.target.value)}
+                >
+                  {STATION_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="medStaffField">
+                <label className="medStaffFieldLabel" htmlFor="staff-nurse-name">
+                  Signed in as
+                </label>
+                <input
+                  id="staff-nurse-name"
+                  className="uiInput medStaffInput"
+                  type="text"
+                  value={nurseName}
+                  onChange={(e) => setNurseName(e.target.value)}
+                  placeholder="Name for intake and charting"
+                  autoComplete="name"
+                />
+              </div>
+
+              <div className="medStaffField">
+                <label className="medStaffFieldLabel" htmlFor="staff-status">
+                  Duty status
+                </label>
+                <select
+                  id="staff-status"
+                  className="uiSelect medStaffSelect"
+                  value={nurseStatus}
+                  onChange={(e) => setNurseStatus(e.target.value)}
+                >
+                  <option value="on-duty">On Duty</option>
+                  <option value="break">Break</option>
+                  <option value="offline">Offline</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <p className="medProfileName">Nurse station</p>
-              <p className="medProfileRole">Triage · Station 2</p>
+
+            <div className="medStaffActions">
+              <button type="button" className="primaryButton medStaffActionPrimary" onClick={() => router.push("/dashboard?intake=1")}>
+                New patient intake
+              </button>
+              <Link href="/dashboard" className="medStaffLinkSecondary">
+                Open dashboard
+              </Link>
             </div>
-          </div>
+          </section>
         </div>
       </aside>
 

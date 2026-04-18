@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useRouter } from "next/router";
 import { Fragment, useEffect, useMemo, useState } from "react";
 
 const API_BASE = "http://localhost:8080";
@@ -76,6 +77,7 @@ function availabilityLabel(status) {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [patients, setPatients] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [summary, setSummary] = useState({
@@ -93,6 +95,14 @@ export default function DashboardPage() {
   useEffect(() => {
     loadDashboard();
   }, []);
+
+  useEffect(() => {
+    if (!router.isReady) return;
+    if (router.query.intake === "1") {
+      setShowIntakeModal(true);
+      router.replace("/dashboard", undefined, { shallow: true });
+    }
+  }, [router.isReady, router.query.intake, router]);
 
   async function loadDashboard() {
     setGlobalError("");
