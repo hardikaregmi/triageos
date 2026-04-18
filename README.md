@@ -98,13 +98,21 @@ This fragmentation slows down decision-making when speed matters most.
 
 ## 🖥️ Local Setup
 
-### 1. Start Backend
 ```bash
+# 1. Start Backend
 cd backend
 mvn spring-boot:run
 
-### 2. Start Frontend
-```bash
-cd frontend
+# Backend runs at:
+# http://localhost:8080
+
+
+# 2. Start Frontend
+cd ../frontend
 npm install
 npm run dev
+
+# Frontend runs at:
+# http://localhost:3000
+
+Frontend → http://localhost:3000
