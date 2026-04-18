@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
 import PatientIdentitySummary from "../components/PatientIdentitySummary";
-
-const API_BASE = "http://localhost:8080";
+import { API_BASE, authHeaders, handleUnauthorized } from "../lib/api";
 
 export default function DoctorsPage() {
+  const router = useRouter();
   const [patients, setPatients] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [error, setError] = useState("");
@@ -16,9 +17,12 @@ export default function DoctorsPage() {
     setError("");
     try {
       const [patientsRes, doctorsRes] = await Promise.all([
-        fetch(`${API_BASE}/patients`),
-        fetch(`${API_BASE}/doctors`),
+        fetch(`${API_BASE}/patients`, { headers: authHeaders(false) }),
+        fetch(`${API_BASE}/doctors`, { headers: authHeaders(false) }),
       ]);
+      if (handleUnauthorized(patientsRes, router) || handleUnauthorized(doctorsRes, router)) {
+        return;
+      }
       if (!patientsRes.ok || !doctorsRes.ok) {
         throw new Error("Failed request");
       }
@@ -63,9 +67,12 @@ export default function DoctorsPage() {
 
   async function refreshDoctorAndSummaryData() {
     const [doctorsRes, summaryRes] = await Promise.all([
-      fetch(`${API_BASE}/doctors`),
-      fetch(`${API_BASE}/dashboard/summary`),
+      fetch(`${API_BASE}/doctors`, { headers: authHeaders(false) }),
+      fetch(`${API_BASE}/dashboard/summary`, { headers: authHeaders(false) }),
     ]);
+    if (handleUnauthorized(doctorsRes, router) || handleUnauthorized(summaryRes, router)) {
+      return;
+    }
     if (!doctorsRes.ok || !summaryRes.ok) {
       throw new Error("Failed request");
     }
@@ -78,9 +85,12 @@ export default function DoctorsPage() {
     try {
       const response = await fetch(`${API_BASE}/doctors/${doctorId}/status`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeaders(true),
         body: JSON.stringify({ status }),
       });
+      if (handleUnauthorized(response, router)) {
+        return;
+      }
       if (!response.ok) {
         throw new Error("Request failed");
       }

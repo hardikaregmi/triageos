@@ -53,7 +53,7 @@ public class DatasetSampleImportService {
         for (int i = safeOffset; i < end; i++) {
             DatasetRow row = all.get(i);
             Patient intake = DatasetPatientMapper.toPatient(row, i);
-            Patient saved = patientService.createPatient(intake);
+            Patient saved = patientService.createPatientFromPreparedEntity(intake);
             if (runTriage) {
                 saved = patientService.runTriage(saved.getId()).orElse(saved);
                 summaries.add(DatasetTriageSummary.fromPatient(saved));

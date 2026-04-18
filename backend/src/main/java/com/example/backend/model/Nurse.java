@@ -1,26 +1,44 @@
 package com.example.backend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
 /**
- * Nurse roster entry scoped to a hospital; distinct from {@link Doctor} but same role model.
+ * Authenticated nurse account for a hospital workstation.
  */
+@Entity
+@Table(name = "nurses")
 public class Nurse {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private Long hospitalId;
-    /** Future link to authenticated platform user (nullable until auth exists). */
-    private Long userId;
+
+    @Column(name = "hospital_id", nullable = false)
+    private Long hospitalId = Hospital.DEFAULT_ID;
+
+    @Column(nullable = false, unique = true, length = 64)
+    private String username;
+
+    @JsonIgnore
+    @Column(name = "password_hash", nullable = false, length = 120)
+    private String passwordHash;
+
+    @Column(name = "display_name", nullable = false, length = 256)
+    private String displayName;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 32)
     private StaffRole role = StaffRole.NURSE;
-    private String name;
 
     public Nurse() {
-    }
-
-    public Nurse(Long id, Long hospitalId, Long userId, StaffRole role, String name) {
-        this.id = id;
-        this.hospitalId = hospitalId;
-        this.userId = userId;
-        this.role = role != null ? role : StaffRole.NURSE;
-        this.name = name;
     }
 
     public Long getId() {
@@ -39,12 +57,28 @@ public class Nurse {
         this.hospitalId = hospitalId;
     }
 
-    public Long getUserId() {
-        return userId;
+    public String getUsername() {
+        return username;
     }
 
-    public void setUserId(Long userId) {
-        this.userId = userId;
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
     }
 
     public StaffRole getRole() {
@@ -53,13 +87,5 @@ public class Nurse {
 
     public void setRole(StaffRole role) {
         this.role = role;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
     }
 }

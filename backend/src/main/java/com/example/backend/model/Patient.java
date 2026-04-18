@@ -1,43 +1,102 @@
 package com.example.backend.model;
 
 import com.fasterxml.jackson.annotation.JsonGetter;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
+import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonIgnoreProperties(ignoreUnknown = true)
+@Entity
+@Table(name = "patients")
 public class Patient {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    /** Hospital (tenant) this encounter belongs to. */
+
+    @Column(name = "patient_code", length = 32)
+    private String patientCode;
+
+    @Column(name = "hospital_id")
     private Long hospitalId;
-    /** Future: submitting staff user id when auth exists (nullable). */
+
+    @Column(name = "user_id")
     private Long userId;
-    /** Stable non-PII patient-facing identifier (e.g. PT-0001). */
-    private String patientIdentifier;
+
+    @Column(name = "full_name", length = 512)
     private String fullName;
+
+    @Column(name = "age")
     private int age;
+
+    @Column(name = "sex", length = 32)
     private String sex;
+
+    @Column(name = "room_number", length = 64)
     private String roomNumber;
+
+    @Column(name = "heart_rate")
     private int heartRate;
+
+    @Column(name = "temperature")
     private double temperature;
+
+    @Column(name = "wbc")
     private int wbc;
+
+    @Column(name = "blood_pressure", length = 64)
     private String bloodPressure;
+
+    @Column(name = "oxygen_saturation")
     private double oxygenSaturation;
+
+    @Column(name = "chief_complaint", length = 2048)
     private String chiefComplaint;
+
+    @Column(name = "symptom_duration", length = 256)
     private String symptomDuration;
+
+    @Column(name = "pain_level")
     private int painLevel;
+
+    @Column(name = "fever")
     private boolean fever;
+
+    @Column(name = "shortness_of_breath")
     private boolean shortnessOfBreath;
+
+    @Column(name = "chest_pain")
     private boolean chestPain;
+
+    @Column(name = "arrival_time", length = 128)
     private String arrivalTime;
+
+    @Column(name = "triage_nurse_name", length = 256)
     private String triageNurseName;
+
+    @Column(name = "department_needed", length = 256)
     private String departmentNeeded;
+
+    @Column(name = "priority_note", length = 2048)
     private String priorityNote;
-    /** True when created from the CSV testing import (privacy-safe display id in {@link #fullName}). */
+
+    @Column(name = "imported_from_dataset")
     private boolean importedFromDataset;
 
+    @Embedded
     @JsonUnwrapped
     private TriageResult triageResult;
+
+    public Patient() {
+    }
 
     @JsonGetter("name")
     public String getName() {
@@ -50,6 +109,14 @@ public class Patient {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public String getPatientCode() {
+        return patientCode;
+    }
+
+    public void setPatientCode(String patientCode) {
+        this.patientCode = patientCode;
     }
 
     public Long getHospitalId() {
@@ -66,14 +133,6 @@ public class Patient {
 
     public void setUserId(Long userId) {
         this.userId = userId;
-    }
-
-    public String getPatientIdentifier() {
-        return patientIdentifier;
-    }
-
-    public void setPatientIdentifier(String patientIdentifier) {
-        this.patientIdentifier = patientIdentifier;
     }
 
     public String getFullName() {

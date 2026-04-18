@@ -2,7 +2,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 import { useAppRole } from "../contexts/AppRoleContext";
-import { NURSE_SESSION, NURSE_STATION_OPTIONS, normalizeNurseStaffId } from "../constants/nurseSession";
+import { NURSE_SESSION, NURSE_STATION_OPTIONS, clearNurseSession } from "../constants/nurseSession";
 
 
 const API_BASE = "http://localhost:8080";
@@ -68,7 +68,8 @@ export default function Layout({ children }) {
   const router = useRouter();
   const { role: appRole, hospitalId } = useAppRole();
   const [now, setNow] = useState(() => new Date());
-  const [nurseStaffId, setNurseStaffId] = useState("N-0104");
+  const [nurseDisplayName, setNurseDisplayName] = useState("");
+  const [nurseUsername, setNurseUsername] = useState("");
   const [station, setStation] = useState(NURSE_STATION_OPTIONS[1]);
   const [nurseStatus, setNurseStatus] = useState("on-duty");
 
@@ -79,24 +80,18 @@ export default function Layout({ children }) {
 
   useEffect(() => {
     try {
-      const id = localStorage.getItem(NURSE_SESSION.staffId);
+      const name = localStorage.getItem(NURSE_SESSION.name);
+      const user = localStorage.getItem(NURSE_SESSION.username);
       const s = localStorage.getItem(NURSE_SESSION.station);
       const st = localStorage.getItem(NURSE_SESSION.status);
-      if (id) setNurseStaffId(normalizeNurseStaffId(id));
+      if (name) setNurseDisplayName(name);
+      if (user) setNurseUsername(user);
       if (s && NURSE_STATION_OPTIONS.includes(s)) setStation(s);
       if (st === "on-duty" || st === "break" || st === "offline") setNurseStatus(st);
     } catch {
       /* ignore */
     }
   }, []);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(NURSE_SESSION.staffId, nurseStaffId);
-    } catch {
-      /* ignore */
-    }
-  }, [nurseStaffId]);
 
   useEffect(() => {
     try {
@@ -136,15 +131,7 @@ export default function Layout({ children }) {
   });
 
   function logoutNurseSession() {
-    try {
-      localStorage.removeItem(NURSE_SESSION.loggedIn);
-      localStorage.removeItem(NURSE_SESSION.name);
-      localStorage.removeItem(NURSE_SESSION.staffId);
-      localStorage.removeItem(NURSE_SESSION.station);
-      localStorage.removeItem(NURSE_SESSION.status);
-    } catch {
-      /* ignore */
-    }
+    clearNurseSession();
     router.replace("/nurse-login");
   }
 
@@ -186,7 +173,14 @@ export default function Layout({ children }) {
         <div className="medSidebarFooter">
           <section className="medStaffPanel" aria-label="Nurse station">
             <header className="medStaffPanelBar">
-              <h2 className="medStaffPanelHeading">Nurse ID {nurseStaffId}</h2>
+              <h2 className="medStaffPanelHeading">
+                {nurseDisplayName || "Nurse"}
+                {nurseUsername ? (
+                  <span style={{ display: "block", fontSize: 11, fontWeight: 400, color: "var(--text-hint)", marginTop: 4 }}>
+                    @{nurseUsername}
+                  </span>
+                ) : null}
+              </h2>
               <div className="medStaffPresence" aria-live="polite">
                 <span
                   className={`medStaffPresenceLed medStaffPresenceLed--${nurseStatus}`}
@@ -217,21 +211,6 @@ export default function Layout({ children }) {
               </div>
 
               <div className="medStaffField">
-                <label className="medStaffFieldLabel" htmlFor="staff-nurse-id">
-                  Nurse ID
-                </label>
-                <input
-                  id="staff-nurse-id"
-                  className="uiInput medStaffInput"
-                  type="text"
-                  value={nurseStaffId}
-                  onChange={(e) => setNurseStaffId(normalizeNurseStaffId(e.target.value))}
-                  placeholder="N-0104"
-                  autoComplete="off"
-                />
-              </div>
-
-              <div className="medStaffField">
                 <label className="medStaffFieldLabel" htmlFor="staff-status">
                   Duty status
                 </label>
@@ -252,12 +231,6 @@ export default function Layout({ children }) {
               <button type="button" className="primaryButton medStaffActionPrimary" onClick={() => router.push("/dashboard?intake=1")}>
                 New patient intake
               </button>
-              <Link href="/dashboard" className="medStaffLinkSecondary">
-                Open dashboard
-              </Link>
-             <Link href="/nurse-login" className="medStaffLinkSecondary">
-                Switch nurse
-              </Link>
               <button type="button" className="medStaffLinkSecondary medStaffLinkButton" onClick={logoutNurseSession}>
                 Logout
               </button>

@@ -1,26 +1,21 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
+import { API_BASE } from "../lib/api";
 import {
   NURSE_SESSION,
   NURSE_STATION_OPTIONS,
-  normalizeNurseStaffId,
   isNurseLoggedIn,
 } from "../constants/nurseSession";
 
-const DEMO_CREDENTIALS = {
-  "N-0104": "demo123",
-  "N-0105": "demo123",
-};
-
 export default function NurseLoginPage() {
   const router = useRouter();
-  const [nurseId, setNurseId] = useState("N-0104");
-  const [nurseName, setNurseName] = useState("R. Morgan");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [station, setStation] = useState(NURSE_STATION_OPTIONS[1]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [welcomeName, setWelcomeName] = useState("");
 
   useEffect(() => {
     if (!router.isReady) return;
@@ -29,37 +24,55 @@ export default function NurseLoginPage() {
       return;
     }
     try {
-      const storedName = localStorage.getItem(NURSE_SESSION.name);
-      const storedId = localStorage.getItem(NURSE_SESSION.staffId);
       const storedStation = localStorage.getItem(NURSE_SESSION.station);
-      if (storedName) setNurseName(storedName);
-      if (storedId) setNurseId(normalizeNurseStaffId(storedId));
-      if (storedStation && NURSE_STATION_OPTIONS.includes(storedStation))
+      if (storedStation && NURSE_STATION_OPTIONS.includes(storedStation)) {
         setStation(storedStation);
+      }
     } catch {
       /* ignore */
     }
   }, [router]);
 
-  function submit(e) {
+  async function submit(e) {
     e.preventDefault();
     setError("");
-    const normalizedId = normalizeNurseStaffId(nurseId);
-    const expectedPassword = DEMO_CREDENTIALS[normalizedId];
-    if (!expectedPassword || password !== expectedPassword) {
-      setError("Invalid credentials. Check your Nurse ID and password.");
+    const u = String(username ?? "").trim().toLowerCase();
+    if (!u || !password) {
+      setError("Enter username and password.");
       return;
     }
     setSaving(true);
-    setSuccess(true);
     try {
-      localStorage.setItem(NURSE_SESSION.loggedIn, "true");
-      localStorage.setItem(NURSE_SESSION.name, nurseName.trim() || "Nurse");
-      localStorage.setItem(NURSE_SESSION.staffId, normalizedId);
+      const response = await fetch(`${API_BASE}/api/auth/nurse/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: u, password }),
+      });
+      if (!response.ok) {
+        setError("Invalid username or password.");
+        return;
+      }
+      const data = await response.json();
+      const token = data.token;
+      const nurse = data.nurse;
+      if (!token || !nurse) {
+        setError("Unexpected response from server.");
+        return;
+      }
+      localStorage.setItem(NURSE_SESSION.token, token);
+      localStorage.setItem(NURSE_SESSION.name, nurse.displayName || u);
+      localStorage.setItem(NURSE_SESSION.username, nurse.username || u);
+      localStorage.removeItem(NURSE_SESSION.loggedIn);
+      localStorage.removeItem(NURSE_SESSION.staffId);
       localStorage.setItem(NURSE_SESSION.station, station);
       localStorage.setItem(NURSE_SESSION.status, "on-duty");
+      setWelcomeName(nurse.displayName || nurse.username || u);
+      setSuccess(true);
+      setTimeout(() => router.replace("/dashboard"), 900);
+    } catch {
+      setError("Could not reach the server. Is the API running?");
     } finally {
-      setTimeout(() => router.replace("/dashboard"), 1500);
+      setSaving(false);
     }
   }
 
@@ -259,19 +272,17 @@ export default function NurseLoginPage() {
 
       <div className="nl-page">
         <div className="nl-shell">
-
-          {/* ── Left brand panel ── */}
           <div className="nl-panel-left">
             <div className="nl-brand">
-              <div className="nl-brand-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.85" strokeLinecap="round" width={18} height={18} aria-hidden>
-                  <rect x="3.5" y="3.5" width="17" height="17" rx="4.5" />
-                  <path d="M12 8v8M8 12h8" />
+              <div className="nl-brand-icon" aria-hidden>
+                <svg viewBox="0 0 24 24" fill="none" width={20} height={20}>
+                  <rect x="3.5" y="3.5" width="17" height="17" rx="4.5" stroke="rgba(255,255,255,0.35)" strokeWidth="1.25" />
+                  <path d="M12 8v8M8 12h8" stroke="rgba(255,255,255,0.9)" strokeWidth="1.75" strokeLinecap="round" />
                 </svg>
               </div>
               <div>
                 <div className="nl-brand-name">TriageOS</div>
-                <div className="nl-brand-tag">AI command center</div>
+                <div className="nl-brand-tag">Clinical operations</div>
               </div>
             </div>
 
@@ -299,7 +310,6 @@ export default function NurseLoginPage() {
             </div>
           </div>
 
-          {/* ── Right form panel ── */}
           <div className="nl-panel-right">
             {success ? (
               <div className="nl-success" role="status" aria-live="polite">
@@ -309,7 +319,7 @@ export default function NurseLoginPage() {
                   </svg>
                 </div>
                 <div className="nl-success-title">
-                  Welcome back, {nurseName.trim() || nurseId}
+                  Welcome back, {welcomeName}
                 </div>
                 <div className="nl-success-sub">
                   Clocked in to {station} · Redirecting to dashboard…
@@ -319,7 +329,7 @@ export default function NurseLoginPage() {
               <>
                 <h2 className="nl-form-title">Nurse sign-in</h2>
                 <p className="nl-form-sub">
-                  Demo access — use credentials below to continue.
+                  Sign in with your assigned username and password.
                 </p>
 
                 {error && (
@@ -330,7 +340,7 @@ export default function NurseLoginPage() {
                   <div className="nl-fields">
 
                     <div className="nl-field">
-                      <label className="nl-label" htmlFor="nl-nurse-id">Nurse ID</label>
+                      <label className="nl-label" htmlFor="nl-username">Username</label>
                       <div className="nl-input-wrap">
                         <span className="nl-input-icon">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width={16} height={16} aria-hidden>
@@ -339,35 +349,13 @@ export default function NurseLoginPage() {
                           </svg>
                         </span>
                         <input
-                          id="nl-nurse-id"
+                          id="nl-username"
                           className="nl-input mono"
                           type="text"
-                          placeholder="N-0104"
-                          value={nurseId}
-                          onChange={(e) => setNurseId(normalizeNurseStaffId(e.target.value))}
-                          autoComplete="off"
-                          disabled={saving}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="nl-field">
-                      <label className="nl-label" htmlFor="nl-nurse-name">Name</label>
-                      <div className="nl-input-wrap">
-                        <span className="nl-input-icon">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" width={16} height={16} aria-hidden>
-                            <circle cx="12" cy="8" r="4"/>
-                            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-                          </svg>
-                        </span>
-                        <input
-                          id="nl-nurse-name"
-                          className="nl-input"
-                          type="text"
-                          placeholder="R. Morgan"
-                          value={nurseName}
-                          onChange={(e) => setNurseName(e.target.value)}
-                          autoComplete="name"
+                          placeholder="nurse"
+                          value={username}
+                          onChange={(e) => setUsername(e.target.value)}
+                          autoComplete="username"
                           disabled={saving}
                         />
                       </div>
@@ -386,7 +374,7 @@ export default function NurseLoginPage() {
                           id="nl-password"
                           className="nl-input"
                           type="password"
-                          placeholder="demo123"
+                          placeholder="••••••••"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           autoComplete="current-password"
@@ -422,7 +410,7 @@ export default function NurseLoginPage() {
                 </form>
 
                 <p className="nl-footer">
-                  Demo: N-0104 or N-0105 · password: demo123
+                  Accounts are created on the server. Ask your administrator if you need access.
                 </p>
               </>
             )}

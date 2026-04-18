@@ -4,8 +4,7 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import PatientIdentitySummary from "../components/PatientIdentitySummary";
 import { NURSE_SESSION, isNurseLoggedIn } from "../constants/nurseSession";
 import { patientDisplayLabel } from "../lib/patientDisplay";
-
-const API_BASE = "http://localhost:8080";
+import { API_BASE, authHeaders, handleUnauthorized } from "../lib/api";
 
 function buildIntakePayload(form) {
   return {
@@ -53,6 +52,30 @@ const emptyIntakeForm = () => ({
   priorityNote: "",
 });
 
+function patientToForm(patient) {
+  return {
+    fullName: patient.fullName ?? "",
+    age: patient.age != null ? String(patient.age) : "",
+    sex: patient.sex ?? "",
+    roomNumber: patient.roomNumber ?? "",
+    heartRate: patient.heartRate != null ? String(patient.heartRate) : "",
+    temperature: patient.temperature != null ? String(patient.temperature) : "",
+    wbc: patient.wbc != null ? String(patient.wbc) : "",
+    bloodPressure: patient.bloodPressure ?? "",
+    oxygenSaturation: patient.oxygenSaturation != null ? String(patient.oxygenSaturation) : "",
+    chiefComplaint: patient.chiefComplaint ?? "",
+    symptomDuration: patient.symptomDuration ?? "",
+    painLevel: patient.painLevel != null ? String(patient.painLevel) : "",
+    fever: patient.fever ? "yes" : "no",
+    shortnessOfBreath: patient.shortnessOfBreath ? "yes" : "no",
+    chestPain: patient.chestPain ? "yes" : "no",
+    arrivalTime: patient.arrivalTime ?? "",
+    triageNurseName: patient.triageNurseName ?? "",
+    departmentNeeded: patient.departmentNeeded ?? "",
+    priorityNote: patient.priorityNote ?? "",
+  };
+}
+
 function priorityBadge(patient) {
   if (patient.risk == null) {
     return { label: "Medium", className: "medium" };
@@ -92,6 +115,8 @@ export default function DashboardPage() {
   const [globalError, setGlobalError] = useState("");
   const [addingPatient, setAddingPatient] = useState(false);
   const [showIntakeModal, setShowIntakeModal] = useState(false);
+  const [intakeModalMode, setIntakeModalMode] = useState("create");
+  const [editingPatientId, setEditingPatientId] = useState(null);
   const [intakeForm, setIntakeForm] = useState(emptyIntakeForm);
   const [expandedId, setExpandedId] = useState(null);
   const [sessionReady, setSessionReady] = useState(false);
@@ -123,6 +148,20 @@ export default function DashboardPage() {
     if (!router.isReady) return;
     if (!sessionReady) return;
     if (router.query.intake === "1") {
+      setIntakeModalMode("create");
+      setEditingPatientId(null);
+      setIntakeForm(() => {
+        const base = emptyIntakeForm();
+        try {
+          const nurseName = localStorage.getItem(NURSE_SESSION.name);
+          if (nurseName && nurseName.trim()) {
+            return { ...base, triageNurseName: nurseName.trim() };
+          }
+        } catch {
+          /* ignore */
+        }
+        return base;
+      });
       setShowIntakeModal(true);
       router.replace("/dashboard", undefined, { shallow: true });
     }
@@ -132,10 +171,18 @@ export default function DashboardPage() {
     setGlobalError("");
     try {
       const [patientsRes, summaryRes, doctorsRes] = await Promise.all([
-        fetch(`${API_BASE}/patients`),
-        fetch(`${API_BASE}/dashboard/summary`),
-        fetch(`${API_BASE}/doctors`),
+        fetch(`${API_BASE}/patients`, { headers: authHeaders(false) }),
+        fetch(`${API_BASE}/dashboard/summary`, { headers: authHeaders(false) }),
+        fetch(`${API_BASE}/doctors`, { headers: authHeaders(false) }),
       ]);
+
+      if (
+        handleUnauthorized(patientsRes, router) ||
+        handleUnauthorized(summaryRes, router) ||
+        handleUnauthorized(doctorsRes, router)
+      ) {
+        return;
+      }
 
       if (!patientsRes.ok || !summaryRes.ok || !doctorsRes.ok) {
         throw new Error("Failed request");
@@ -163,25 +210,66 @@ export default function DashboardPage() {
     });
   }, [patients]);
 
-  async function addPatient() {
+  function openNewPatientModal() {
+    setIntakeModalMode("create");
+    setEditingPatientId(null);
+    setIntakeForm(() => {
+      const base = emptyIntakeForm();
+      try {
+        const nurseName = localStorage.getItem(NURSE_SESSION.name);
+        if (nurseName && nurseName.trim()) {
+          return { ...base, triageNurseName: nurseName.trim() };
+        }
+      } catch {
+        /* ignore */
+      }
+      return base;
+    });
+    setShowIntakeModal(true);
+  }
+
+  function openEditPatientModal(patient, e) {
+    e.stopPropagation();
+    setIntakeModalMode("edit");
+    setEditingPatientId(patient.id);
+    setIntakeForm(patientToForm(patient));
+    setShowIntakeModal(true);
+  }
+
+  function closeIntakeModal() {
+    setShowIntakeModal(false);
+    setIntakeModalMode("create");
+    setEditingPatientId(null);
+    setIntakeForm(emptyIntakeForm());
+  }
+
+  async function saveIntakePatient() {
     setAddingPatient(true);
     setGlobalError("");
+    const payload = buildIntakePayload(intakeForm);
+    const isEdit = intakeModalMode === "edit" && editingPatientId != null;
     try {
-      const response = await fetch(`${API_BASE}/patients`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildIntakePayload(intakeForm)),
-      });
+      const response = await fetch(
+        isEdit ? `${API_BASE}/patients/${editingPatientId}` : `${API_BASE}/patients`,
+        {
+          method: isEdit ? "PUT" : "POST",
+          headers: authHeaders(true),
+          body: JSON.stringify(payload),
+        }
+      );
+
+      if (handleUnauthorized(response, router)) {
+        return;
+      }
 
       if (!response.ok) {
         throw new Error("Request failed");
       }
 
-      setIntakeForm(emptyIntakeForm());
-      setShowIntakeModal(false);
+      closeIntakeModal();
       await loadDashboard();
     } catch (err) {
-      setGlobalError("Could not add patient. Please try again.");
+      setGlobalError(isEdit ? "Could not update patient. Please try again." : "Could not add patient. Please try again.");
     } finally {
       setAddingPatient(false);
     }
@@ -194,7 +282,11 @@ export default function DashboardPage() {
     try {
       const response = await fetch(`${API_BASE}/patients/${patientId}`, {
         method: "DELETE",
+        headers: authHeaders(false),
       });
+      if (handleUnauthorized(response, router)) {
+        return;
+      }
       if (!response.ok) {
         throw new Error("Request failed");
       }
@@ -270,7 +362,7 @@ export default function DashboardPage() {
                 <Link href="/doctors" className="medLinkQuiet">
                   Available doctors
                 </Link>
-                <button type="button" className="primaryButton" onClick={() => setShowIntakeModal(true)}>
+                <button type="button" className="primaryButton" onClick={openNewPatientModal}>
                   + New patient
                 </button>
               </div>
@@ -287,7 +379,7 @@ export default function DashboardPage() {
                   <th>Status</th>
                   <th>Assigned to</th>
                   <th>Time</th>
-                  <th style={{ minWidth: 168 }}>Actions</th>
+                  <th style={{ minWidth: 220 }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -336,9 +428,17 @@ export default function DashboardPage() {
                           <div className="medTableActions">
                             <button
                               type="button"
+                              className="btnSm"
+                              onClick={(e) => openEditPatientModal(patient, e)}
+                              disabled={addingPatient || !!loadingMap[`remove-${patient.id}`]}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
                               className="btnSm btnSmDanger"
                               onClick={(e) => removePatient(patient.id, e)}
-                              disabled={!!loadingMap[`remove-${patient.id}`]}
+                              disabled={!!loadingMap[`remove-${patient.id}`] || addingPatient}
                             >
                               {loadingMap[`remove-${patient.id}`] ? "…" : "Remove"}
                             </button>
@@ -446,9 +546,9 @@ export default function DashboardPage() {
           <div className="medCard modalCardLight">
             <div className="sectionHeader">
               <p className="sectionLabel" id="intake-title">
-                Patient intake
+                {intakeModalMode === "edit" ? "Edit patient" : "Patient intake"}
               </p>
-              <button type="button" className="btnSm" onClick={() => setShowIntakeModal(false)}>
+              <button type="button" className="btnSm" onClick={closeIntakeModal}>
                 Close
               </button>
             </div>
@@ -656,11 +756,11 @@ export default function DashboardPage() {
             </div>
 
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-              <button type="button" className="btnSm" onClick={() => setShowIntakeModal(false)}>
+              <button type="button" className="btnSm" onClick={closeIntakeModal}>
                 Cancel
               </button>
-              <button type="button" className="primaryButton" onClick={addPatient} disabled={addingPatient}>
-                {addingPatient ? "Saving…" : "Save patient"}
+              <button type="button" className="primaryButton" onClick={saveIntakePatient} disabled={addingPatient}>
+                {addingPatient ? "Saving…" : intakeModalMode === "edit" ? "Save changes" : "Save patient"}
               </button>
             </div>
           </div>

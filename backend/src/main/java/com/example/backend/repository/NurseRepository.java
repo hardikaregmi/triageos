@@ -1,17 +1,13 @@
 package com.example.backend.repository;
 
 import com.example.backend.model.Nurse;
+import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.List;
 import java.util.Optional;
 
-public interface NurseRepository {
+public interface NurseRepository extends JpaRepository<Nurse, Long> {
 
-    List<Nurse> findAll();
+    Optional<Nurse> findByUsernameIgnoreCase(String username);
 
-    List<Nurse> findByHospitalId(long hospitalId);
-
-    Optional<Nurse> findById(long id);
-
-    Nurse save(Nurse nurse);
+    boolean existsByUsernameIgnoreCase(String username);
 }

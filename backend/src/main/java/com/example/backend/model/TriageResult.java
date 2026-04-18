@@ -1,21 +1,38 @@
 package com.example.backend.model;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import jakarta.persistence.Column;
+import jakarta.persistence.Embeddable;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@Embeddable
 public class TriageResult {
 
+    @Column(name = "triage_risk")
     private String risk;
+
+    @Column(name = "triage_message")
     private String message;
+
+    @Column(name = "triage_reasoning")
     private String reasoning;
+
+    @Column(name = "triage_confidence")
     private String confidence;
+
+    @Column(name = "triage_assigned_doctor")
     private String assignedDoctor;
 
-    /** ESI-style label from AI or rule-based enrichment (e.g. URGENT, LESS_URGENT). */
+    @Column(name = "triage_priority")
     private String priority;
-    /** Primary clinical concern (mirrors message when from rules). */
+
+    @Column(name = "triage_concern")
     private String concern;
+
+    @Column(name = "triage_recommended_action")
     private String recommendedAction;
+
+    @Column(name = "triage_suggested_specialty")
     private String suggestedSpecialty;
 
     public TriageResult() {
