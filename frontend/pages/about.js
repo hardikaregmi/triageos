@@ -1,59 +1,40 @@
 export default function AboutPage() {
   return (
-    <section className="aboutWrap pageContainer">
-      <section className="glassPanel aboutPanel panelPaddingLg sectionContainer">
-        <div className="sectionHeader">
-          <p className="sectionLabel">About Triage</p>
-        </div>
-        <h1>What triage means in hospital operations</h1>
-        <p>
-          Triage is the process of quickly evaluating patients to determine who needs immediate
-          care and who can safely wait. It helps clinical teams prioritize scarce resources and
-          reduce treatment delays during high-demand periods.
+    <div className="pageContainer aboutPage">
+      <section className="medCard panelPaddingLg">
+        <p className="sectionLabel">Clinical context</p>
+        <h2 className="aboutHeading">Triage in hospital operations</h2>
+        <p className="aboutBody">
+          Triage is used to evaluate patients and decide who needs immediate attention versus who can wait safely. It
+          helps teams use limited resources when patient volume is high.
         </p>
       </section>
 
-      <section className="glassPanel aboutPanel panelPaddingLg sectionContainer">
-        <div className="sectionHeader">
-          <p className="sectionLabel">How TriageOS Helps</p>
-        </div>
-        <h2>Faster decisions, clearer coordination</h2>
-        <p>
-          TriageOS brings patient risk, confidence, and staffing context into one shared command
-          view. Care teams can identify high-risk cases, monitor doctor availability, and align on
-          next actions without switching tools.
+      <section className="medCard panelPaddingLg">
+        <p className="sectionLabel">This application</p>
+        <h2 className="aboutHeading">Purpose</h2>
+        <p className="aboutBody">
+          TriageOS is an operational view for charge nurses and admins: intake data, triage results, and physician
+          availability in one place so handoffs stay clear.
         </p>
       </section>
 
       <style jsx>{`
-        .aboutWrap {
-          gap: 22px;
+        .aboutHeading {
+          margin: 0 0 8px;
+          font-size: 15px;
+          font-weight: 600;
+          color: var(--text);
+          letter-spacing: -0.01em;
         }
-
-        .aboutPanel {
-          padding: 34px 36px;
-        }
-
-        h1,
-        h2 {
+        .aboutBody {
           margin: 0;
-          color: #eef6ff;
-          font-size: 42px;
-          line-height: 1.15;
-        }
-
-        h2 {
-          font-size: 36px;
-        }
-
-        p {
-          margin: 16px 0 0;
-          color: #c8d9f6;
-          font-size: 22px;
-          line-height: 1.52;
-          max-width: 1100px;
+          font-size: 14px;
+          color: var(--text-muted);
+          line-height: 1.55;
+          max-width: 40rem;
         }
       `}</style>
-    </section>
+    </div>
   );
 }

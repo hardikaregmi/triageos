@@ -1,7 +1,83 @@
-import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { Fragment, useEffect, useMemo, useState } from "react";
+
+const API_BASE = "http://localhost:8080";
+
+function buildIntakePayload(form) {
+  return {
+    fullName: form.fullName,
+    age: form.age === "" ? 0 : Number(form.age),
+    sex: form.sex,
+    roomNumber: form.roomNumber,
+    heartRate: form.heartRate === "" ? 0 : Number(form.heartRate),
+    temperature: form.temperature === "" ? 0 : Number(form.temperature),
+    wbc: form.wbc === "" ? 0 : Number(form.wbc),
+    bloodPressure: form.bloodPressure,
+    oxygenSaturation: form.oxygenSaturation === "" ? 0 : Number(form.oxygenSaturation),
+    chiefComplaint: form.chiefComplaint,
+    symptomDuration: form.symptomDuration,
+    painLevel: form.painLevel === "" ? 0 : Number(form.painLevel),
+    fever: form.fever === "yes",
+    shortnessOfBreath: form.shortnessOfBreath === "yes",
+    chestPain: form.chestPain === "yes",
+    arrivalTime: form.arrivalTime,
+    triageNurseName: form.triageNurseName,
+    departmentNeeded: form.departmentNeeded,
+    priorityNote: form.priorityNote,
+  };
+}
+
+const emptyIntakeForm = () => ({
+  fullName: "",
+  age: "",
+  sex: "",
+  roomNumber: "",
+  heartRate: "",
+  temperature: "",
+  wbc: "",
+  bloodPressure: "",
+  oxygenSaturation: "",
+  chiefComplaint: "",
+  symptomDuration: "",
+  painLevel: "",
+  fever: "no",
+  shortnessOfBreath: "no",
+  chestPain: "no",
+  arrivalTime: "",
+  triageNurseName: "",
+  departmentNeeded: "",
+  priorityNote: "",
+});
+
+function priorityBadge(patient) {
+  if (patient.risk == null) {
+    return { label: "Medium", className: "medium" };
+  }
+  if (patient.risk === "HIGH") {
+    return { label: "High", className: "high" };
+  }
+  return { label: "Low", className: "low" };
+}
+
+function initials(name) {
+  if (!name || typeof name !== "string") return "?";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function availabilityLabel(status) {
+  if (!status) return "—";
+  const s = status.toLowerCase();
+  if (s === "available") return "Available";
+  if (s === "busy") return "Busy";
+  if (s.includes("off")) return "Off duty";
+  return status;
+}
 
 export default function DashboardPage() {
   const [patients, setPatients] = useState([]);
+  const [doctors, setDoctors] = useState([]);
   const [summary, setSummary] = useState({
     totalPatients: 0,
     highRiskPatients: 0,
@@ -11,51 +87,35 @@ export default function DashboardPage() {
   const [globalError, setGlobalError] = useState("");
   const [addingPatient, setAddingPatient] = useState(false);
   const [showIntakeModal, setShowIntakeModal] = useState(false);
-  const [intakeForm, setIntakeForm] = useState({
-    fullName: "",
-    age: "",
-    sex: "",
-    patientIdOrRoom: "",
-    heartRate: "",
-    temperature: "",
-    wbc: "",
-    bloodPressure: "",
-    oxygenSaturation: "",
-    chiefComplaint: "",
-    symptomDuration: "",
-    painLevel: "",
-    fever: "no",
-    shortnessOfBreath: "no",
-    chestPain: "no",
-    arrivalTime: "",
-    triageNurseName: "",
-    departmentNeeded: "",
-    priorityNote: "",
-  });
+  const [intakeForm, setIntakeForm] = useState(emptyIntakeForm);
+  const [expandedId, setExpandedId] = useState(null);
 
   useEffect(() => {
-    loadAllData();
+    loadDashboard();
   }, []);
 
-  async function loadAllData() {
+  async function loadDashboard() {
     setGlobalError("");
     try {
-      const [patientsRes, summaryRes] = await Promise.all([
-        fetch("http://localhost:8080/patients"),
-        fetch("http://localhost:8080/dashboard/summary"),
+      const [patientsRes, summaryRes, doctorsRes] = await Promise.all([
+        fetch(`${API_BASE}/patients`),
+        fetch(`${API_BASE}/dashboard/summary`),
+        fetch(`${API_BASE}/doctors`),
       ]);
 
-      if (!patientsRes.ok || !summaryRes.ok) {
+      if (!patientsRes.ok || !summaryRes.ok || !doctorsRes.ok) {
         throw new Error("Failed request");
       }
 
-      const [patientsData, summaryData] = await Promise.all([
+      const [patientsData, summaryData, doctorsData] = await Promise.all([
         patientsRes.json(),
         summaryRes.json(),
+        doctorsRes.json(),
       ]);
 
       setPatients(patientsData);
       setSummary(summaryData);
+      setDoctors(doctorsData);
     } catch (err) {
       setGlobalError("Could not load dashboard data. Please try again.");
     }
@@ -69,53 +129,23 @@ export default function DashboardPage() {
     });
   }, [patients]);
 
-  function patientTrend(patient) {
-    if (patient.risk !== "HIGH") return "Stable";
-    return patient.heartRate > 120 || patient.temperature >= 102.5 ? "Worsening" : "Stable";
-  }
-
   async function addPatient() {
     setAddingPatient(true);
     setGlobalError("");
     try {
-      const response = await fetch("http://localhost:8080/patients", {
+      const response = await fetch(`${API_BASE}/patients`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: intakeForm.fullName,
-          heartRate: Number(intakeForm.heartRate),
-          temperature: Number(intakeForm.temperature),
-          wbc: Number(intakeForm.wbc),
-        }),
+        body: JSON.stringify(buildIntakePayload(intakeForm)),
       });
 
       if (!response.ok) {
         throw new Error("Request failed");
       }
 
-      setIntakeForm({
-        fullName: "",
-        age: "",
-        sex: "",
-        patientIdOrRoom: "",
-        heartRate: "",
-        temperature: "",
-        wbc: "",
-        bloodPressure: "",
-        oxygenSaturation: "",
-        chiefComplaint: "",
-        symptomDuration: "",
-        painLevel: "",
-        fever: "no",
-        shortnessOfBreath: "no",
-        chestPain: "no",
-        arrivalTime: "",
-        triageNurseName: "",
-        departmentNeeded: "",
-        priorityNote: "",
-      });
+      setIntakeForm(emptyIntakeForm());
       setShowIntakeModal(false);
-      await loadAllData();
+      await loadDashboard();
     } catch (err) {
       setGlobalError("Could not add patient. Please try again.");
     } finally {
@@ -123,17 +153,18 @@ export default function DashboardPage() {
     }
   }
 
-  async function triagePatient(patientId) {
+  async function triagePatient(patientId, e) {
+    e.stopPropagation();
     setLoadingMap((prev) => ({ ...prev, [`triage-${patientId}`]: true }));
     setGlobalError("");
     try {
-      const response = await fetch(`http://localhost:8080/patients/${patientId}/triage`, {
+      const response = await fetch(`${API_BASE}/patients/${patientId}/triage`, {
         method: "POST",
       });
       if (!response.ok) {
         throw new Error("Request failed");
       }
-      await loadAllData();
+      await loadDashboard();
     } catch (err) {
       setGlobalError("Could not triage patient. Please try again.");
     } finally {
@@ -141,17 +172,19 @@ export default function DashboardPage() {
     }
   }
 
-  async function removePatient(patientId) {
+  async function removePatient(patientId, e) {
+    e.stopPropagation();
     setLoadingMap((prev) => ({ ...prev, [`remove-${patientId}`]: true }));
     setGlobalError("");
     try {
-      const response = await fetch(`http://localhost:8080/patients/${patientId}`, {
+      const response = await fetch(`${API_BASE}/patients/${patientId}`, {
         method: "DELETE",
       });
       if (!response.ok) {
         throw new Error("Request failed");
       }
-      await loadAllData();
+      setExpandedId(null);
+      await loadDashboard();
     } catch (err) {
       setGlobalError("Could not remove patient. Please try again.");
     } finally {
@@ -159,54 +192,281 @@ export default function DashboardPage() {
     }
   }
 
+  function toggleExpand(id) {
+    setExpandedId((prev) => (prev === id ? null : id));
+  }
+
   return (
-    <section className="dashboardWrap pageContainer">
-      {globalError && <section className="errorStrip">{globalError}</section>}
+    <div className="pageContainer">
+      {globalError && <div className="errorStripLight">{globalError}</div>}
 
-      <section className="summaryGrid">
-        <article className="glassPanel summaryCard">
-          <p className="sectionLabel">Total Patients</p>
-          <p className="summaryValue">{summary.totalPatients}</p>
+      <div className="medStatGrid">
+        <article className="medStatCard medStatCardTextOnly">
+          <div>
+            <p className="medStatLabel">Total patients</p>
+            <p className="medStatValue">{summary.totalPatients}</p>
+            <p className="medStatHint">Current queue</p>
+          </div>
         </article>
-        <article className="glassPanel summaryCard">
-          <p className="sectionLabel">High Risk Patients</p>
-          <p className="summaryValue">{summary.highRiskPatients}</p>
-        </article>
-        <article className="glassPanel summaryCard">
-          <p className="sectionLabel">Available Doctors</p>
-          <p className="summaryValue">{summary.availableDoctors}</p>
-        </article>
-      </section>
 
-      <section className="glassPanel intakePanel panelPaddingLg">
-        <div className="sectionHeader">
-          <p className="sectionLabel">New Patient Intake</p>
+        <article className="medStatCard medStatCardTextOnly">
+          <div>
+            <p className="medStatLabel">High priority</p>
+            <p className={`medStatValue ${summary.highRiskPatients > 0 ? "alert" : ""}`}>{summary.highRiskPatients}</p>
+            <p className="medStatHint">Flagged after triage</p>
+          </div>
+        </article>
+
+        <article className="medStatCard medStatCardTextOnly">
+          <div>
+            <p className="medStatLabel">Doctors on duty</p>
+            <p className="medStatValue">{summary.availableDoctors}</p>
+            <p className="medStatHint">Available now</p>
+          </div>
+        </article>
+
+        <article className="medStatCard medStatCardTextOnly">
+          <div>
+            <p className="medStatLabel">Average wait time</p>
+            <p className="medStatValue">—</p>
+            <p className="medStatHint">Not recorded</p>
+          </div>
+        </article>
+      </div>
+
+      <div className="medSplit">
+        <div>
+          <div className="medCard panelPaddingLg dashToolbar">
+            <div className="queueToolbarRow">
+              <div className="queueTitleBlock">
+                <div className="queueTitleRow">
+                  <h2 className="medPanelTitle" style={{ margin: 0 }}>
+                    Patient triage queue
+                  </h2>
+                  {summary.highRiskPatients > 0 && (
+                    <span className="queuePriorityBadge">{summary.highRiskPatients} high priority</span>
+                  )}
+                </div>
+                <p className="medPanelHint dashToolbarHint" style={{ margin: 0 }}>
+                  Select a row to expand intake notes and triage output
+                </p>
+              </div>
+              <div className="queueToolbarActions">
+                <Link href="/doctors" className="medLinkQuiet">
+                  Physician roster
+                </Link>
+                <button type="button" className="primaryButton" onClick={() => setShowIntakeModal(true)}>
+                  + New patient
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="medTableWrap">
+            <table className="medTable">
+              <thead>
+                <tr>
+                  <th>Patient</th>
+                  <th>Age</th>
+                  <th>Priority</th>
+                  <th>Status</th>
+                  <th>Assigned to</th>
+                  <th>Time</th>
+                  <th style={{ minWidth: 168 }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedPatients.length === 0 && (
+                  <tr>
+                    <td colSpan={7} style={{ padding: 24, textAlign: "center", color: "var(--text-muted)" }}>
+                      No patients in queue. Add a new intake to begin.
+                    </td>
+                  </tr>
+                )}
+                {sortedPatients.map((patient) => {
+                  const displayName = patient.name ?? patient.fullName ?? "Patient";
+                  const badge = priorityBadge(patient);
+                  const triaged = patient.risk != null;
+                  const isOpen = expandedId === patient.id;
+                  return (
+                    <Fragment key={patient.id}>
+                      <tr
+                        onClick={() => toggleExpand(patient.id)}
+                        style={{ cursor: "pointer" }}
+                        title="Show details"
+                      >
+                        <td>
+                          <div className="patientCellName">{displayName}</div>
+                          {patient.roomNumber && <div className="patientCellRoom">Room {patient.roomNumber}</div>}
+                          <div className="tableMuted">
+                            {patient.chiefComplaint
+                              ? patient.chiefComplaint.slice(0, 44) + (patient.chiefComplaint.length > 44 ? "…" : "")
+                              : "—"}
+                          </div>
+                        </td>
+                        <td style={{ fontVariantNumeric: "tabular-nums" }}>{patient.age != null ? patient.age : "—"}</td>
+                        <td>
+                          <span className={`statusPillBadge ${badge.className}`}>{badge.label}</span>
+                        </td>
+                        <td>
+                          <span className="statusWithDot">
+                            <span className={`statusDotInline ${triaged ? "ready" : "waiting"}`} aria-hidden />
+                            {triaged ? "Triaged" : "Waiting"}
+                          </span>
+                        </td>
+                        <td>{patient.assignedDoctor || "—"}</td>
+                        <td style={{ fontVariantNumeric: "tabular-nums", color: "var(--text-muted)" }}>
+                          {patient.arrivalTime || "—"}
+                        </td>
+                        <td onClick={(e) => e.stopPropagation()}>
+                          <div className="medTableActions">
+                            <button
+                              type="button"
+                              className="btnSm btnSmPrimary"
+                              onClick={(e) => triagePatient(patient.id, e)}
+                              disabled={!!loadingMap[`triage-${patient.id}`]}
+                            >
+                              {loadingMap[`triage-${patient.id}`] ? "…" : "Triage"}
+                            </button>
+                            <button
+                              type="button"
+                              className="btnSm btnSmDanger"
+                              onClick={(e) => removePatient(patient.id, e)}
+                              disabled={!!loadingMap[`remove-${patient.id}`]}
+                            >
+                              {loadingMap[`remove-${patient.id}`] ? "…" : "Remove"}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {isOpen && (
+                        <tr className="medTableDetail">
+                          <td colSpan={7}>
+                            <div style={{ padding: 16, fontSize: 13 }}>
+                              <p style={{ margin: "0 0 10px", fontWeight: 600, color: "var(--text-muted)" }}>
+                                Intake & vitals
+                              </p>
+                              <p style={{ margin: "0 0 8px", color: "var(--text)" }}>
+                                Age {patient.age} · {patient.sex || "—"} · Dept {patient.departmentNeeded || "—"} · Nurse{" "}
+                                {patient.triageNurseName || "—"}
+                              </p>
+                              <p style={{ margin: "0 0 8px", color: "var(--text-muted)" }}>
+                                HR {patient.heartRate} · Temp {patient.temperature}°F · WBC {patient.wbc} · BP{" "}
+                                {patient.bloodPressure || "—"} · SpO₂ {patient.oxygenSaturation}%
+                              </p>
+                              {triaged && (
+                                <>
+                                  <p style={{ margin: "14px 0 8px", fontWeight: 600, color: "var(--text-muted)" }}>
+                                    Triage result
+                                  </p>
+                                  <dl
+                                    style={{
+                                      display: "grid",
+                                      gridTemplateColumns: "140px 1fr",
+                                      gap: "6px 12px",
+                                      margin: 0,
+                                      color: "var(--text)",
+                                    }}
+                                  >
+                                    <dt style={{ color: "var(--text-hint)" }}>Priority</dt>
+                                    <dd style={{ margin: 0 }}>{patient.priority ?? "—"}</dd>
+                                    <dt style={{ color: "var(--text-hint)" }}>Concern</dt>
+                                    <dd style={{ margin: 0 }}>{patient.concern ?? patient.message ?? "—"}</dd>
+                                    <dt style={{ color: "var(--text-hint)" }}>Reasoning</dt>
+                                    <dd style={{ margin: 0 }}>{patient.reasoning ?? "—"}</dd>
+                                    <dt style={{ color: "var(--text-hint)" }}>Recommended action</dt>
+                                    <dd style={{ margin: 0 }}>{patient.recommendedAction ?? "—"}</dd>
+                                    <dt style={{ color: "var(--text-hint)" }}>Suggested specialty</dt>
+                                    <dd style={{ margin: 0 }}>{patient.suggestedSpecialty ?? "—"}</dd>
+                                    <dt style={{ color: "var(--text-hint)" }}>Confidence</dt>
+                                    <dd style={{ margin: 0 }}>{patient.confidence ?? "—"}</dd>
+                                    <dt style={{ color: "var(--text-hint)" }}>Assigned doctor</dt>
+                                    <dd style={{ margin: 0 }}>{patient.assignedDoctor ?? "—"}</dd>
+                                  </dl>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
-        <button className="primaryButton" onClick={() => setShowIntakeModal(true)}>
-          New Patient Intake
-        </button>
-      </section>
+
+        <aside className="medCard panelPaddingLg">
+          <div className="dashPanelHead">
+            <div>
+              <h2 className="medPanelTitle" style={{ margin: 0 }}>
+                Doctors on duty
+              </h2>
+              <p className="medPanelHint" style={{ margin: "4px 0 0" }}>
+                Live roster from server
+              </p>
+            </div>
+            <Link href="/doctors" className="medLinkQuiet">
+              View all
+            </Link>
+          </div>
+          <div className="medDoctorList">
+            {doctors.map((doctor) => (
+              <div key={doctor.id} className="medDoctorRow">
+                <div className="medDoctorAvatar" aria-hidden>
+                  {initials(doctor.name)}
+                </div>
+                <div className="medDoctorInfo">
+                  <p className="medDoctorName">{doctor.name}</p>
+                  <p className="medDoctorSpec">{doctor.specialty}</p>
+                </div>
+                <div>
+                  <span
+                    className={`statusPillBadge ${
+                      doctor.status === "available" ? "available" : doctor.status === "busy" ? "busy" : "offshift"
+                    }`}
+                  >
+                    {doctor.status}
+                  </span>
+                  <div className="medDoctorMeta">{availabilityLabel(doctor.status)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </aside>
+      </div>
 
       {showIntakeModal && (
-        <section className="modalOverlay">
-          <div className="glassPanel intakeModal">
+        <div className="modalOverlayLight" role="dialog" aria-modal="true" aria-labelledby="intake-title">
+          <div className="medCard modalCardLight">
             <div className="sectionHeader">
-              <p className="sectionLabel">Patient Pre-Checkup Intake</p>
+              <p className="sectionLabel" id="intake-title">
+                Patient intake
+              </p>
+              <button type="button" className="btnSm" onClick={() => setShowIntakeModal(false)}>
+                Close
+              </button>
             </div>
 
-            <div className="formSection sectionContainer">
-              <p className="sectionLabel">Patient Identity</p>
-              <div className="formGrid">
+            <div className="formSection sectionContainer" style={{ marginBottom: 12 }}>
+              <p className="sectionLabel">Identity</p>
+              <div
+                className="formGrid"
+                style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}
+              >
                 <label>
-                  Full Name
-                  <input className="uiInput"
+                  Full name
+                  <input
+                    className="uiInput"
                     value={intakeForm.fullName}
                     onChange={(e) => setIntakeForm((prev) => ({ ...prev, fullName: e.target.value }))}
                   />
                 </label>
                 <label>
                   Age
-                  <input className="uiInput"
+                  <input
+                    className="uiInput"
                     type="number"
                     value={intakeForm.age}
                     onChange={(e) => setIntakeForm((prev) => ({ ...prev, age: e.target.value }))}
@@ -214,7 +474,8 @@ export default function DashboardPage() {
                 </label>
                 <label>
                   Sex
-                  <select className="uiSelect"
+                  <select
+                    className="uiSelect"
                     value={intakeForm.sex}
                     onChange={(e) => setIntakeForm((prev) => ({ ...prev, sex: e.target.value }))}
                   >
@@ -225,21 +486,26 @@ export default function DashboardPage() {
                   </select>
                 </label>
                 <label>
-                  Patient ID or Room Number
-                  <input className="uiInput"
-                    value={intakeForm.patientIdOrRoom}
-                    onChange={(e) => setIntakeForm((prev) => ({ ...prev, patientIdOrRoom: e.target.value }))}
+                  Room number
+                  <input
+                    className="uiInput"
+                    value={intakeForm.roomNumber}
+                    onChange={(e) => setIntakeForm((prev) => ({ ...prev, roomNumber: e.target.value }))}
                   />
                 </label>
               </div>
             </div>
 
-            <div className="formSection sectionContainer">
-              <p className="sectionLabel">Vital Signs</p>
-              <div className="formGrid">
+            <div className="formSection sectionContainer" style={{ marginBottom: 12 }}>
+              <p className="sectionLabel">Vital signs</p>
+              <div
+                className="formGrid"
+                style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}
+              >
                 <label>
-                  Heart Rate
-                  <input className="uiInput"
+                  Heart rate
+                  <input
+                    className="uiInput"
                     type="number"
                     value={intakeForm.heartRate}
                     onChange={(e) => setIntakeForm((prev) => ({ ...prev, heartRate: e.target.value }))}
@@ -247,7 +513,8 @@ export default function DashboardPage() {
                 </label>
                 <label>
                   Temperature
-                  <input className="uiInput"
+                  <input
+                    className="uiInput"
                     type="number"
                     step="0.1"
                     value={intakeForm.temperature}
@@ -256,22 +523,26 @@ export default function DashboardPage() {
                 </label>
                 <label>
                   WBC
-                  <input className="uiInput"
+                  <input
+                    className="uiInput"
                     type="number"
                     value={intakeForm.wbc}
                     onChange={(e) => setIntakeForm((prev) => ({ ...prev, wbc: e.target.value }))}
                   />
                 </label>
                 <label>
-                  Blood Pressure
-                  <input className="uiInput"
+                  Blood pressure
+                  <input
+                    className="uiInput"
                     value={intakeForm.bloodPressure}
                     onChange={(e) => setIntakeForm((prev) => ({ ...prev, bloodPressure: e.target.value }))}
                   />
                 </label>
-                <label>
-                  Oxygen Saturation
-                  <input className="uiInput"
+                <label style={{ gridColumn: "span 2" }}>
+                  Oxygen saturation
+                  <input
+                    className="uiInput"
+                    type="number"
                     value={intakeForm.oxygenSaturation}
                     onChange={(e) => setIntakeForm((prev) => ({ ...prev, oxygenSaturation: e.target.value }))}
                   />
@@ -279,26 +550,32 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="formSection sectionContainer">
-              <p className="sectionLabel">Clinical Notes</p>
-              <div className="formGrid">
+            <div className="formSection sectionContainer" style={{ marginBottom: 16 }}>
+              <p className="sectionLabel">Clinical notes</p>
+              <div
+                className="formGrid"
+                style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 12 }}
+              >
                 <label>
-                  Chief Complaint
-                  <input className="uiInput"
+                  Chief complaint
+                  <input
+                    className="uiInput"
                     value={intakeForm.chiefComplaint}
                     onChange={(e) => setIntakeForm((prev) => ({ ...prev, chiefComplaint: e.target.value }))}
                   />
                 </label>
                 <label>
-                  Symptom Duration
-                  <input className="uiInput"
+                  Symptom duration
+                  <input
+                    className="uiInput"
                     value={intakeForm.symptomDuration}
                     onChange={(e) => setIntakeForm((prev) => ({ ...prev, symptomDuration: e.target.value }))}
                   />
                 </label>
                 <label>
-                  Pain Level
-                  <input className="uiInput"
+                  Pain level
+                  <input
+                    className="uiInput"
                     type="number"
                     min="0"
                     max="10"
@@ -308,7 +585,8 @@ export default function DashboardPage() {
                 </label>
                 <label>
                   Fever
-                  <select className="uiSelect"
+                  <select
+                    className="uiSelect"
                     value={intakeForm.fever}
                     onChange={(e) => setIntakeForm((prev) => ({ ...prev, fever: e.target.value }))}
                   >
@@ -317,8 +595,9 @@ export default function DashboardPage() {
                   </select>
                 </label>
                 <label>
-                  Shortness of Breath
-                  <select className="uiSelect"
+                  Shortness of breath
+                  <select
+                    className="uiSelect"
                     value={intakeForm.shortnessOfBreath}
                     onChange={(e) => setIntakeForm((prev) => ({ ...prev, shortnessOfBreath: e.target.value }))}
                   >
@@ -327,8 +606,9 @@ export default function DashboardPage() {
                   </select>
                 </label>
                 <label>
-                  Chest Pain
-                  <select className="uiSelect"
+                  Chest pain
+                  <select
+                    className="uiSelect"
                     value={intakeForm.chestPain}
                     onChange={(e) => setIntakeForm((prev) => ({ ...prev, chestPain: e.target.value }))}
                   >
@@ -337,29 +617,33 @@ export default function DashboardPage() {
                   </select>
                 </label>
                 <label>
-                  Arrival Time
-                  <input className="uiInput"
+                  Arrival time
+                  <input
+                    className="uiInput"
                     value={intakeForm.arrivalTime}
                     onChange={(e) => setIntakeForm((prev) => ({ ...prev, arrivalTime: e.target.value }))}
                   />
                 </label>
                 <label>
-                  Triage Nurse Name
-                  <input className="uiInput"
+                  Triage nurse
+                  <input
+                    className="uiInput"
                     value={intakeForm.triageNurseName}
                     onChange={(e) => setIntakeForm((prev) => ({ ...prev, triageNurseName: e.target.value }))}
                   />
                 </label>
                 <label>
-                  Department Needed
-                  <input className="uiInput"
+                  Department
+                  <input
+                    className="uiInput"
                     value={intakeForm.departmentNeeded}
                     onChange={(e) => setIntakeForm((prev) => ({ ...prev, departmentNeeded: e.target.value }))}
                   />
                 </label>
-                <label className="spanTwo">
-                  Priority Note
-                  <textarea className="uiTextarea"
+                <label style={{ gridColumn: "span 2" }}>
+                  Priority note
+                  <textarea
+                    className="uiTextarea"
                     value={intakeForm.priorityNote}
                     onChange={(e) => setIntakeForm((prev) => ({ ...prev, priorityNote: e.target.value }))}
                   />
@@ -367,313 +651,17 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="modalActions">
-              <button className="primaryButton" onClick={addPatient} disabled={addingPatient}>
-                {addingPatient ? "Saving..." : "Save Patient"}
-              </button>
-              <button className="dangerButton" onClick={() => setShowIntakeModal(false)}>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button type="button" className="btnSm" onClick={() => setShowIntakeModal(false)}>
                 Cancel
+              </button>
+              <button type="button" className="primaryButton" onClick={addPatient} disabled={addingPatient}>
+                {addingPatient ? "Saving…" : "Save patient"}
               </button>
             </div>
           </div>
-        </section>
+        </div>
       )}
-
-      <div className="commandGrid">
-        <section className="glassPanel queuePanel panelPaddingLg">
-          <div className="sectionHeader">
-            <p className="sectionLabel">Live Triage Queue</p>
-          </div>
-          <div className="patientList">
-            {sortedPatients.map((patient) => {
-              const isHigh = patient.risk === "HIGH";
-              const trend = patientTrend(patient);
-              const riskClass = patient.risk === "HIGH" ? "high" : patient.risk === "LOW" ? "low" : "pending";
-              return (
-                <article key={patient.id} className={`patientCard surfaceCard ${riskClass}`}>
-                  <h3>{patient.name}</h3>
-                  <div className="vitalsRow">
-                    <span>HR: {patient.heartRate}</span>
-                    <span>Temp: {patient.temperature}°F</span>
-                    <span>WBC: {patient.wbc}</span>
-                  </div>
-
-                  <div className="buttonRow">
-                    <button
-                      className="primaryButton"
-                      onClick={() => triagePatient(patient.id)}
-                      disabled={!!loadingMap[`triage-${patient.id}`]}
-                    >
-                      {loadingMap[`triage-${patient.id}`] ? "Triaging..." : "Triage"}
-                    </button>
-                    <button
-                      className="dangerButton"
-                      onClick={() => removePatient(patient.id)}
-                      disabled={!!loadingMap[`remove-${patient.id}`]}
-                    >
-                      {loadingMap[`remove-${patient.id}`] ? "Removing..." : "Remove"}
-                    </button>
-                  </div>
-
-                  {patient.risk && (
-                    <div className="analysis">
-                      <p className="sectionLabel">System Analysis</p>
-                      <div className="riskRow">
-                        <span className={`statusPillBadge ${isHigh ? "high" : "low"}`}>{patient.risk}</span>
-                        <span className="diagnosis">{patient.message}</span>
-                      </div>
-                      <p className="reasoning">{patient.reasoning}</p>
-                      <p className="meta">Confidence: {patient.confidence}</p>
-                      <p className={`meta ${trend === "Worsening" ? "warn" : ""}`}>
-                        Trend: {trend === "Worsening" ? "⚠ Worsening" : "Stable"}
-                      </p>
-
-                      {isHigh && (
-                        <div className="recommended">
-                          <p className="sectionLabel">Recommended Action</p>
-                          <p>Immediate evaluation required</p>
-                          <p>Order infection panel and blood tests</p>
-                          <p>Monitor vitals continuously</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </article>
-              );
-            })}
-          </div>
-        </section>
-      </div>
-
-      <style jsx>{`
-        .errorStrip {
-          border-radius: 14px;
-          border: 1px solid rgba(255, 126, 145, 0.56);
-          background: rgba(87, 24, 39, 0.72);
-          color: #ffd7df;
-          font-size: 17px;
-          padding: 14px 18px;
-        }
-
-        .summaryGrid {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 20px;
-        }
-
-        .summaryCard {
-          padding: 28px;
-          border-color: rgba(159, 223, 255, 0.4);
-        }
-
-        .summaryValue {
-          margin: 12px 0 0;
-          font-size: 48px;
-          font-weight: 700;
-          color: #f2f8ff;
-          letter-spacing: 0.01em;
-        }
-
-        .intakePanel {
-          border-color: rgba(152, 214, 255, 0.38);
-        }
-
-        .modalOverlay {
-          position: fixed;
-          inset: 0;
-          z-index: 50;
-          background: rgba(6, 12, 28, 0.62);
-          backdrop-filter: blur(4px);
-          display: grid;
-          place-items: center;
-          padding: 26px;
-        }
-
-        .intakeModal {
-          width: min(1080px, 100%);
-          max-height: 88vh;
-          overflow: auto;
-          padding: 28px;
-          display: grid;
-          gap: 18px;
-        }
-
-        .formSection {
-          padding: 16px;
-        }
-
-        .formGrid {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 14px;
-        }
-
-        .formGrid label {
-          display: grid;
-          gap: 8px;
-          font-size: 15px;
-          color: #c8d9f5;
-          font-weight: 600;
-        }
-
-        .formGrid .uiInput,
-        .formGrid .uiSelect {
-          height: 50px;
-        }
-
-        .formGrid .uiTextarea {
-          min-height: 92px;
-        }
-
-        .spanTwo {
-          grid-column: span 2;
-        }
-
-        .modalActions {
-          display: flex;
-          gap: 12px;
-          flex-wrap: wrap;
-          justify-content: flex-end;
-        }
-
-        .commandGrid {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 24px;
-          align-items: start;
-        }
-
-        .patientList {
-          margin-top: 14px;
-          display: grid;
-          gap: 18px;
-          min-height: 220px;
-        }
-
-        .patientList:empty::after {
-          content: "No patients yet. Add a patient to begin triage.";
-          display: block;
-          border-radius: 14px;
-          border: 1px dashed rgba(157, 219, 255, 0.38);
-          background: rgba(17, 32, 64, 0.5);
-          color: #b9cff2;
-          font-size: 18px;
-          padding: 26px 20px;
-          text-align: center;
-        }
-
-        .patientCard {
-          padding: 22px;
-          transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
-        }
-
-        .patientCard:hover {
-          transform: translateY(-1px);
-          box-shadow:
-            inset 0 1px 0 rgba(219, 243, 255, 0.17),
-            0 14px 24px rgba(8, 17, 40, 0.36);
-        }
-
-        .patientCard.high {
-          border-color: rgba(255, 126, 141, 0.62);
-          background: linear-gradient(165deg, rgba(72, 26, 39, 0.8), rgba(57, 21, 33, 0.86));
-          box-shadow: 0 0 18px rgba(188, 56, 80, 0.3);
-        }
-
-        .patientCard.low {
-          border-color: rgba(130, 211, 205, 0.5);
-          background: linear-gradient(165deg, rgba(24, 63, 71, 0.74), rgba(20, 49, 59, 0.82));
-          box-shadow: 0 0 14px rgba(52, 152, 146, 0.26);
-        }
-
-        h3 {
-          margin: 0;
-          font-size: 33px;
-          color: #f2f8ff;
-        }
-
-        .vitalsRow {
-          margin-top: 12px;
-          display: flex;
-          gap: 22px;
-          flex-wrap: wrap;
-          color: #b8ccee;
-          font-size: 19px;
-        }
-
-        .buttonRow {
-          margin-top: 18px;
-          display: flex;
-          gap: 14px;
-          flex-wrap: wrap;
-        }
-
-        .analysis {
-          margin-top: 18px;
-          padding-top: 18px;
-          border-top: 1px solid rgba(162, 203, 235, 0.28);
-        }
-
-        .riskRow {
-          margin-top: 8px;
-          display: flex;
-          gap: 10px;
-          flex-wrap: wrap;
-          align-items: center;
-        }
-
-        .diagnosis {
-          font-size: 24px;
-          font-weight: 700;
-          color: #ebf3ff;
-        }
-
-        .reasoning {
-          margin: 10px 0 0;
-          font-size: 19px;
-          line-height: 1.45;
-          color: #c5d9f8;
-        }
-
-        .meta {
-          margin: 6px 0 0;
-          color: #9fbae2;
-          font-size: 17px;
-          font-weight: 600;
-        }
-
-        .meta.warn {
-          color: #ffb8c4;
-        }
-
-        .recommended {
-          margin-top: 12px;
-          border-radius: 12px;
-          border: 1px solid rgba(255, 152, 167, 0.44);
-          background: rgba(84, 29, 44, 0.62);
-          padding: 14px 16px;
-        }
-
-        .recommended p {
-          margin: 6px 0 0;
-          color: #ffd9df;
-          font-size: 17px;
-        }
-
-        @media (max-width: 1000px) {
-          .summaryGrid {
-            grid-template-columns: 1fr;
-          }
-
-          .formGrid {
-            grid-template-columns: 1fr;
-          }
-
-          .spanTwo {
-            grid-column: span 1;
-          }
-        }
-      `}</style>
-    </section>
+    </div>
   );
 }

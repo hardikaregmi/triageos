@@ -1,51 +1,175 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
+import { useEffect, useMemo, useState } from "react";
 
 const navItems = [
-  { href: "/", label: "Home" },
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/doctors", label: "Doctors" },
-  { href: "/about", label: "About" },
+  {
+    href: "/",
+    label: "Home",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        <path d="M9 22V12h6v10" />
+      </svg>
+    ),
+  },
+  {
+    href: "/dashboard",
+    label: "Dashboard",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
+        <rect x="3" y="3" width="7" height="9" rx="1" />
+        <rect x="14" y="3" width="7" height="5" rx="1" />
+        <rect x="14" y="12" width="7" height="9" rx="1" />
+        <rect x="3" y="16" width="7" height="5" rx="1" />
+      </svg>
+    ),
+  },
+  {
+    href: "/doctors",
+    label: "Doctors",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+    ),
+  },
+  {
+    href: "/about",
+    label: "About",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
+        <circle cx="12" cy="12" r="10" />
+        <path d="M12 16v-4M12 8h.01" />
+      </svg>
+    ),
+  },
 ];
+
+function greetingForHour(h) {
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function titleForRoute(pathname) {
+  if (pathname === "/dashboard") return "Hospital overview";
+  if (pathname === "/doctors") return "Physician roster";
+  if (pathname === "/about") return "About";
+  return "TriageOS";
+}
+
+function subtitleForRoute(pathname) {
+  if (pathname === "/") return "Shortcuts to queue, roster, and reference material.";
+  if (pathname === "/dashboard") return "Today's patient flow and staffing at a glance.";
+  if (pathname === "/doctors") return "Who is available and how patients are distributed.";
+  if (pathname === "/about") return "Background on triage in acute care.";
+  return "";
+}
 
 export default function Layout({ children }) {
   const router = useRouter();
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(t);
+  }, []);
+
+  const headerTitle = useMemo(() => {
+    const path = router.pathname;
+    if (path === "/" || path === "/dashboard") {
+      return `${greetingForHour(now.getHours())}, Nurse`;
+    }
+    return titleForRoute(path);
+  }, [router.pathname, now]);
+
+  const headerSub = subtitleForRoute(router.pathname);
+
+  const timeStr = now.toLocaleString(undefined, {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 
   return (
-    <div className="appShell">
-      <div className="ambientGlow ambientGlowA" />
-      <div className="ambientGlow ambientGlowB" />
-      <div className="ambientGrid" />
-
-      <header className="glassPanel headerPanel">
-        <div>
-          <p className="brandName">TriageOS</p>
-          <p className="brandSub">AI Hospital Command Center</p>
+    <div className="medShell">
+      <aside className="medSidebar">
+        <div className="medSidebarBrand">
+          <span className="medLogoMark" aria-hidden>
+            <svg viewBox="0 0 24 24" fill="none">
+              <path
+                d="M12 5v14M5 12h14"
+                stroke="currentColor"
+                strokeWidth="2.25"
+                strokeLinecap="round"
+              />
+            </svg>
+          </span>
+          <div>
+            <div className="medLogoText">TriageOS</div>
+            <p className="medLogoSub">AI command center</p>
+          </div>
         </div>
-        <nav className="topNav">
+
+        <nav className="medNav" aria-label="Main">
           {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className={`navLink ${router.pathname === item.href ? "active" : ""}`}
+              className={`medNavLink ${router.pathname === item.href ? "active" : ""}`}
             >
+              <span className="medNavIcon">{item.icon}</span>
               {item.label}
             </Link>
           ))}
         </nav>
-        <p className="statusPill">
-          <span className="statusDot" />
-          System Active
-        </p>
-      </header>
 
-      <main className="mainContent">{children}</main>
+        <div className="medSidebarFooter">
+          <div className="medStatusCard">
+            <p className="medStatusCardTitle">
+              <strong>System active</strong>
+            </p>
+            <div className="medStatusRow">
+              <span className="medStatusDot" />
+              <span>All channels connected</span>
+            </div>
+          </div>
 
-      <footer className="glassPanel footerPanel">
-        <p className="footerTitle">TriageOS</p>
-        <p className="footerTagline">Premium command center for hospital triage.</p>
-        <p className="footerCopy">© 2026 TriageOS</p>
-      </footer>
+          <div className="medProfileCard">
+            <div className="medAvatar" aria-hidden>
+              NS
+            </div>
+            <div>
+              <p className="medProfileName">Nurse station</p>
+              <p className="medProfileRole">Triage · Station 2</p>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <div className="medWorkspace">
+        <header className="medPageHeader">
+          <div>
+            <h1 className="medPageTitle">{headerTitle}</h1>
+            <p className="medPageSub">{headerSub}</p>
+          </div>
+          <div className="medPageHeaderMeta">
+            <time dateTime={now.toISOString()}>{timeStr}</time>
+          </div>
+        </header>
+
+        <main className="medPageBody">{children}</main>
+
+        <footer className="medAppFooter">
+          <p className="medAppFooterName">TriageOS</p>
+          <p className="medAppFooterTag">AI hospital operations platform</p>
+        </footer>
+      </div>
     </div>
   );
 }

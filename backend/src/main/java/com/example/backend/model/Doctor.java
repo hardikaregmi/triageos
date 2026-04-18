@@ -1,7 +1,8 @@
-package com.example.backend;
+package com.example.backend.model;
 
 public class Doctor {
-    private long id;
+
+    private Long id;
     private String name;
     private String specialty;
     private String status;
@@ -9,18 +10,18 @@ public class Doctor {
     public Doctor() {
     }
 
-    public Doctor(long id, String name, String specialty, String status) {
+    public Doctor(Long id, String name, String specialty, String status) {
         this.id = id;
         this.name = name;
         this.specialty = specialty;
         this.status = status;
     }
 
-    public long getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(long id) {
+    public void setId(Long id) {
         this.id = id;
     }
 

@@ -1,4 +1,4 @@
-package com.example.backend;
+package com.example.backend.web;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -6,12 +6,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-// Handles the analyze endpoint.
 @RestController
 @CrossOrigin(origins = "http://localhost:3000")
 public class AnalyzeController {
 
-    // Receives vitals and returns a simple risk result.
     @PostMapping("/analyze")
     public ResponseEntity<AnalyzeResponse> analyze(@RequestBody AnalyzeRequest input) {
         String risk;
@@ -19,7 +17,6 @@ public class AnalyzeController {
         String reasoning;
         String confidence;
 
-        // Uses simple rule checks to classify risk.
         if (input.heartRate() >= 120 && input.temperature() >= 102 && input.wbc() >= 15000) {
             risk = "HIGH";
             message = "Severe infection risk";
@@ -49,10 +46,10 @@ public class AnalyzeController {
 
         return ResponseEntity.ok(new AnalyzeResponse(risk, message, reasoning, confidence));
     }
+
+    record AnalyzeRequest(int heartRate, double temperature, int wbc) {
+    }
+
+    record AnalyzeResponse(String risk, String message, String reasoning, String confidence) {
+    }
 }
-
-// Input JSON: heartRate, temperature, wbc.
-record AnalyzeRequest(int heartRate, double temperature, int wbc) {}
-
-// Output JSON: risk, message, reasoning, confidence.
-record AnalyzeResponse(String risk, String message, String reasoning, String confidence) {}

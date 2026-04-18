@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
+const API_BASE = "http://localhost:8080";
+
 export default function DoctorsPage() {
   const [patients, setPatients] = useState([]);
   const [doctors, setDoctors] = useState([]);
@@ -14,8 +16,8 @@ export default function DoctorsPage() {
     setError("");
     try {
       const [patientsRes, doctorsRes] = await Promise.all([
-        fetch("http://localhost:8080/patients"),
-        fetch("http://localhost:8080/doctors"),
+        fetch(`${API_BASE}/patients`),
+        fetch(`${API_BASE}/doctors`),
       ]);
       if (!patientsRes.ok || !doctorsRes.ok) {
         throw new Error("Failed request");
@@ -70,48 +72,82 @@ export default function DoctorsPage() {
     setDoctorStatusOverrides((prev) => ({ ...prev, [doctorId]: status }));
   }
 
-  return (
-    <section className="doctorsWrap pageContainer">
-      {error && <section className="errorStrip">{error}</section>}
+  function initials(name) {
+    if (!name) return "?";
+    const p = name.trim().split(/\s+/);
+    if (p.length === 1) return p[0].slice(0, 2).toUpperCase();
+    return (p[0][0] + p[p.length - 1][0]).toUpperCase();
+  }
 
-      <section className="glassPanel doctorBoard panelPaddingLg">
-        <div className="sectionHeader">
-          <p className="sectionLabel">Doctor Board</p>
-        </div>
-        <div className="doctorGrid">
+  return (
+    <div className="pageContainer">
+      {error && <div className="errorStripLight">{error}</div>}
+
+      <section className="medCard panelPaddingLg">
+        <h2 className="medPanelTitle">Physician roster</h2>
+        <p className="medPanelHint">Status selection is local preview only for this browser session.</p>
+
+        <div
+          style={{
+            marginTop: 16,
+            display: "grid",
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+            gap: 14,
+          }}
+          className="doctorPageGrid"
+        >
           {effectiveDoctors.map((doctor) => {
             const assigned = patientsForDoctor(doctor.name);
             return (
-              <article key={doctor.id} className="doctorCard surfaceCard">
-                <p className="doctorName">{doctor.name}</p>
-                <p className="doctorMeta">{doctor.specialty}</p>
-                <p className={`statusPillBadge ${doctor.status === "available" ? "available" : doctor.status === "busy" ? "busy" : "offshift"}`}>
-                  {doctor.status}
-                </p>
-
-                <div className="doctorControl">
-                  <label htmlFor={`doctor-status-${doctor.id}`}>Status</label>
-                  <select className="uiSelect"
-                    id={`doctor-status-${doctor.id}`}
-                    value={doctor.status}
-                    onChange={(e) => updateDoctorStatus(doctor.id, e.target.value)}
-                  >
-                    <option value="available">Available</option>
-                    <option value="busy">Busy</option>
-                    <option value="off shift">Off Shift</option>
-                  </select>
-                </div>
-
-                <div className="assignedList">
-                  {assigned.length === 0 ? (
-                    <p className="assignedItem">No assigned patients</p>
-                  ) : (
-                    assigned.map((patient) => (
-                      <p key={patient.id} className="assignedItem">
-                        {patient.name}
+              <article key={doctor.id} className="surfaceCard" style={{ padding: 16 }}>
+                <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                  <div className="medDoctorAvatar">{initials(doctor.name)}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ margin: 0, fontSize: 14, fontWeight: 500, color: "var(--text)" }}>{doctor.name}</p>
+                    <p style={{ margin: "3px 0 0", fontSize: 12, color: "var(--text-muted)" }}>{doctor.specialty}</p>
+                    <p style={{ margin: "10px 0 0" }}>
+                      <span
+                        className={`statusPillBadge ${
+                          doctor.status === "available" ? "available" : doctor.status === "busy" ? "busy" : "offshift"
+                        }`}
+                      >
+                        {doctor.status}
+                      </span>
+                    </p>
+                    <div style={{ marginTop: 12 }}>
+                      <label
+                        htmlFor={`doctor-status-${doctor.id}`}
+                        style={{ fontSize: 11, fontWeight: 600, color: "var(--text-hint)", display: "block", marginBottom: 6 }}
+                      >
+                        Status
+                      </label>
+                      <select
+                        className="uiSelect"
+                        id={`doctor-status-${doctor.id}`}
+                        value={doctor.status}
+                        onChange={(e) => updateDoctorStatus(doctor.id, e.target.value)}
+                        style={{ width: "100%", maxWidth: 220 }}
+                      >
+                        <option value="available">Available</option>
+                        <option value="busy">Busy</option>
+                        <option value="off shift">Off shift</option>
+                      </select>
+                    </div>
+                    <div style={{ marginTop: 14 }}>
+                      <p style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 600, color: "var(--text-hint)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        Assigned patients
                       </p>
-                    ))
-                  )}
+                      {assigned.length === 0 ? (
+                        <p style={{ margin: 0, fontSize: 13, color: "var(--text-hint)" }}>None</p>
+                      ) : (
+                        <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, color: "var(--text-muted)" }}>
+                          {assigned.map((patient) => (
+                            <li key={patient.id}>{patient.name ?? patient.fullName}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </article>
             );
@@ -120,103 +156,12 @@ export default function DoctorsPage() {
       </section>
 
       <style jsx>{`
-        .errorStrip {
-          border-radius: 14px;
-          border: 1px solid rgba(255, 126, 145, 0.56);
-          background: rgba(87, 24, 39, 0.72);
-          color: #ffd7df;
-          font-size: 17px;
-          padding: 14px 18px;
-        }
-
-        .doctorGrid {
-          margin-top: 14px;
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 18px;
-          min-height: 220px;
-        }
-
-        .doctorGrid:empty::after {
-          content: "No doctor records available.";
-          display: block;
-          border-radius: 14px;
-          border: 1px dashed rgba(157, 219, 255, 0.38);
-          background: rgba(17, 32, 64, 0.5);
-          color: #b9cff2;
-          font-size: 18px;
-          padding: 24px 18px;
-          text-align: center;
-        }
-
-        .doctorCard {
-          padding: 22px;
-          transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
-        }
-
-        .doctorCard:hover {
-          transform: translateY(-1px);
-          border-color: rgba(170, 230, 255, 0.5);
-          box-shadow:
-            inset 0 1px 0 rgba(219, 243, 255, 0.16),
-            0 12px 22px rgba(8, 17, 40, 0.34);
-        }
-
-        .doctorName {
-          margin: 0;
-          font-size: 30px;
-          font-weight: 700;
-          color: #edf5ff;
-        }
-
-        .doctorMeta {
-          margin: 5px 0 0;
-          color: #b4c8eb;
-          font-size: 19px;
-        }
-
-        .doctorControl {
-          margin-top: 14px;
-          display: grid;
-          gap: 9px;
-        }
-
-        .doctorControl label {
-          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-          text-transform: uppercase;
-          letter-spacing: 0.06em;
-          font-size: 12px;
-          color: #a4c5ee;
-        }
-
-        .doctorControl select {
-          height: 46px;
-          padding: 0 10px;
-          font-size: 16px;
-        }
-
-        .assignedList {
-          margin-top: 14px;
-          display: grid;
-          gap: 9px;
-        }
-
-        .assignedItem {
-          margin: 0;
-          border-radius: 10px;
-          padding: 11px 13px;
-          font-size: 17px;
-          background: rgba(20, 38, 72, 0.68);
-          color: #d7e5fb;
-          border: 1px solid rgba(144, 196, 235, 0.3);
-        }
-
-        @media (max-width: 1000px) {
-          .doctorGrid {
-            grid-template-columns: 1fr;
+        @media (max-width: 800px) {
+          .doctorPageGrid {
+            grid-template-columns: 1fr !important;
           }
         }
       `}</style>
-    </section>
+    </div>
   );
 }

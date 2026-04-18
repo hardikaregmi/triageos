@@ -2,104 +2,68 @@ import Link from "next/link";
 
 export default function HomePage() {
   return (
-    <section className="homeWrap pageContainer">
-      <section className="glassPanel heroPanel panelPaddingLg">
-        <div className="sectionHeader">
-          <p className="sectionLabel">Welcome</p>
-        </div>
-        <h1 className="heroTitle">Future-ready triage decisions in one calm command center.</h1>
-        <p className="heroSub">
-          TriageOS helps clinical teams prioritize risk, coordinate doctors, and act faster with clear data.
+    <div className="pageContainer homePage">
+      <section className="medCard panelPaddingLg">
+        <p className="sectionLabel">Start here</p>
+        <h2 className="homeHeading">Triage queue and roster</h2>
+        <p className="homeBody">
+          Open the dashboard to view patients, run triage, and see who is on duty. Use the sidebar for other modules.
         </p>
-        <Link href="/dashboard" className="ctaButton homeCta">
-          Open Dashboard
-        </Link>
+        <p style={{ margin: "14px 0 0" }}>
+          <Link href="/dashboard" className="primaryButton" style={{ display: "inline-flex", alignItems: "center" }}>
+            Dashboard
+          </Link>
+        </p>
       </section>
 
-      <section className="featureGrid">
-        <article className="glassPanel featureCard">
-          <p className="sectionLabel">Risk Intelligence</p>
-          <h2>Real-time triage flow</h2>
-          <p>Analyze patients, classify risk, and keep high-priority cases visible first.</p>
-        </article>
-        <article className="glassPanel featureCard">
-          <p className="sectionLabel">Care Coordination</p>
-          <h2>Doctor-aware routing</h2>
-          <p>View availability and assigned patients so teams can coordinate quickly and clearly.</p>
-        </article>
-        <article className="glassPanel featureCard">
-          <p className="sectionLabel">Operations View</p>
-          <h2>Single-screen control</h2>
-          <p>Track total patients, high-risk count, and staffing readiness in one interface.</p>
-        </article>
-      </section>
+      <nav className="homeLinks medCard panelPaddingLg" aria-label="Modules">
+        <p className="sectionLabel">Modules</p>
+        <ul className="homeLinkList">
+          <li>
+            <Link href="/dashboard">Patient queue & triage</Link>
+          </li>
+          <li>
+            <Link href="/doctors">Physician roster</Link>
+          </li>
+          <li>
+            <Link href="/about">About triage</Link>
+          </li>
+        </ul>
+      </nav>
+
       <style jsx>{`
-        .homeWrap {
-          gap: 24px;
+        .homeHeading {
+          margin: 0 0 8px;
+          font-size: 16px;
+          font-weight: 600;
+          color: var(--text);
+          letter-spacing: -0.01em;
         }
-
-        .heroPanel {
-          padding-bottom: 42px;
-        }
-
-        .heroTitle {
+        .homeBody {
           margin: 0;
-          max-width: 980px;
-          font-size: 56px;
-          line-height: 1.1;
-          letter-spacing: 0.01em;
-          color: #f4f9ff;
-          text-shadow: 0 0 14px rgba(144, 218, 255, 0.2);
+          font-size: 14px;
+          color: var(--text-muted);
+          line-height: 1.5;
+          max-width: 42rem;
         }
-
-        .heroSub {
-          margin: 16px 0 0;
-          max-width: 860px;
-          font-size: 22px;
-          line-height: 1.45;
-          color: #c7d9f7;
-        }
-
-        .homeCta {
-          margin-top: 26px;
-          display: inline-flex;
-          align-items: center;
-        }
-
-        .featureGrid {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 20px;
-        }
-
-        .featureCard {
-          padding: 30px;
-          min-height: 240px;
-        }
-
-        .featureCard h2 {
+        .homeLinkList {
           margin: 0;
-          font-size: 31px;
-          color: #edf5ff;
+          padding: 0;
+          list-style: none;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
         }
-
-        .featureCard p {
-          margin: 12px 0 0;
-          font-size: 19px;
-          color: #c6d8f7;
-          line-height: 1.45;
+        .homeLinkList a {
+          font-size: 14px;
+          color: var(--blue-muted);
+          text-decoration: underline;
+          text-underline-offset: 3px;
         }
-
-        @media (max-width: 1100px) {
-          .featureGrid {
-            grid-template-columns: 1fr;
-          }
-
-          .heroTitle {
-            font-size: 42px;
-          }
+        .homeLinkList a:hover {
+          color: var(--text);
         }
       `}</style>
-    </section>
+    </div>
   );
 }
