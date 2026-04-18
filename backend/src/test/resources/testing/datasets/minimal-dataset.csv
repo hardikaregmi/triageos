@@ -1,0 +1,3 @@
+Disease,Fever,Cough,Fatigue,Difficulty Breathing,Age,Gender,Blood Pressure,Cholesterol Level,Outcome Variable
+Example A,Yes,No,No,No,40,Male,Normal,Normal,Negative
+Example B,No,Yes,Yes,No,55,Female,High,Normal,Positive
