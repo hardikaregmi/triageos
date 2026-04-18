@@ -1081,4 +1081,36 @@ a {
   gap: 12px;
   margin-bottom: 12px;
 }
+.medAuthButtons {
+  display: flex;
+  gap: 10px;
+}
+.medAuthButtons {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
 
+.medAuthBtn {
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  text-decoration: none;
+  border: 1px solid rgba(255,255,255,0.15);
+  color: white;
+  transition: 0.2s ease;
+}
+
+.medAuthLogin {
+  background: rgba(255,255,255,0.08);
+}
+
+.medAuthSignup {
+  background: #4f46e5;
+  border-color: #4f46e5;
+}
+
+.medAuthBtn:hover {
+  transform: translateY(-1px);
+  opacity: 0.9;
+}

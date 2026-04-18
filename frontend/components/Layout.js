@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAppRole } from "../contexts/AppRoleContext";
 import { NURSE_SESSION, NURSE_STATION_OPTIONS, normalizeNurseStaffId } from "../constants/nurseSession";
 
+
 const API_BASE = "http://localhost:8080";
 
 const navItems = [
@@ -151,6 +152,7 @@ export default function Layout({ children }) {
     <div className="medShell" data-app-role={appRole} data-hospital-id={hospitalId}>
       <aside className="medSidebar">
         <div className="medSidebarBrand">
+         
           <span className="medLogoMark" aria-hidden>
             <svg viewBox="0 0 24 24" fill="none">
               <rect x="3.5" y="3.5" width="17" height="17" rx="4.5" />
@@ -252,6 +254,9 @@ export default function Layout({ children }) {
               </button>
               <Link href="/dashboard" className="medStaffLinkSecondary">
                 Open dashboard
+              </Link>
+             <Link href="/nurse-login" className="medStaffLinkSecondary">
+                Switch nurse
               </Link>
               <button type="button" className="medStaffLinkSecondary medStaffLinkButton" onClick={logoutNurseSession}>
                 Logout
