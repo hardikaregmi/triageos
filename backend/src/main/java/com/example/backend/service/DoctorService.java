@@ -23,4 +23,16 @@ public class DoctorService {
     public Optional<Doctor> updateStatus(long id, String status) {
         return doctorRepository.updateStatus(id, status);
     }
+
+    public Doctor createDoctor(String name, String specialty, String status) {
+        Doctor doctor = new Doctor();
+        doctor.setName(name);
+        doctor.setSpecialty(specialty);
+        doctor.setStatus(status != null && !status.isBlank() ? status : "available");
+        return doctorRepository.save(doctor);
+    }
+
+    public boolean deleteDoctor(long id) {
+        return doctorRepository.deleteById(id);
+    }
 }

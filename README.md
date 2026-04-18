@@ -26,9 +26,10 @@ This fragmentation slows down decision-making when speed matters most.
 ---
 
 ## ⚙️ What It Does
-- 🧑‍⚕️ Nurse login flow (demo mode)  
+- 🧑‍⚕️ Nurse login with JWT session (bootstrap demo account from config / `.env`)  
 - 📋 Patient queue dashboard with expandable clinical details  
-- ➕ Add / remove patient intake records  
+- ➕ Add / remove patient intake records; update a patient with `PUT`  
+- 👨‍⚕️ Doctor roster: live availability, **add** / **remove** physicians (roster is in-memory until the backend restarts)  
 - 🧠 AI-assisted triage output:
   - Priority  
   - Concern  
@@ -36,7 +37,6 @@ This fragmentation slows down decision-making when speed matters most.
   - Recommended action  
   - Specialty  
   - Confidence score  
-- 👨‍⚕️ Doctor roster with live availability controls  
 - ⚡ Auto-loaded demo dataset for instant showcase  
 
 ---
@@ -51,7 +51,8 @@ This fragmentation slows down decision-making when speed matters most.
 ### Backend
 - Spring Boot (Java 17)  
 - Maven  
-- In-memory repositories (demo-friendly)  
+- Spring Data JPA with **H2** (in-memory DB) for **patients** and **nurse accounts**  
+- In-memory **doctor** roster (fast to reset; survives until the JVM restarts)  
 
 ### Data
 - CSV-based dataset loader (`data/`)  
@@ -84,35 +85,61 @@ This fragmentation slows down decision-making when speed matters most.
 
 ## 🔌 Core API Endpoints
 
+Most routes require a **Bearer JWT** from nurse login (`Authorization: Bearer <token>`). Exceptions are called out below.
+
+### Nurse auth
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST   | `/api/auth/nurse/login` | Body: `{ "username", "password" }` — returns JWT (**no auth required**) |
+| GET    | `/api/auth/nurse/me` | Current nurse profile (**JWT required**) |
+
+### Patients & triage
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET    | `/patients` | List all patients |
 | POST   | `/patients` | Create patient intake |
+| GET    | `/patients/{id}` | Get one patient |
+| PUT    | `/patients/{id}` | Update intake |
 | DELETE | `/patients/{id}` | Remove patient |
 | POST   | `/patients/{id}/triage` | Run/update triage |
+
+### Doctors & dashboard
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
 | GET    | `/doctors` | List doctors |
+| POST   | `/doctors` | Add doctor — body: `{ "name", "specialty", "status"? }` (defaults to `available`) |
 | PATCH  | `/doctors/{id}/status` | Update availability |
+| DELETE | `/doctors/{id}` | Remove doctor from roster |
 | GET    | `/dashboard/summary` | Dashboard metrics |
+
+### Optional: create nurse accounts (admin key)
+
+If `triageos.admin.nurse-create-key` is set (repo-root `.env` or `application.properties`), you can register nurses with:
+
+`POST /api/admin/nurses` — header **`X-Admin-Key`**: same value as the configured key; body: `{ "username", "password", "displayName" }`. If the key is unset, this endpoint returns **404**.
 
 ---
 
 ## 🖥️ Local Setup
 
+**Environment files (recommended)**  
+- Copy **`.env.example`** to **`.env`** at the **repository root** so the backend can load secrets and bootstrap values (see `BackendApplication` / `application.properties`).  
+- Copy **`frontend/.env.example`** to **`frontend/.env.local`** if you need a non-default API URL (`NEXT_PUBLIC_API_BASE`, default `http://localhost:8080`).
+
+**Default demo nurse** (unless you override in `.env`): username **`10004567`**, password **`nurse`** — sign in at **`http://localhost:3000/nurse-login`** before using the dashboard or doctors pages.
+
 ```bash
-# 1. Start Backend
+# 1. Start backend
 cd backend
 mvn spring-boot:run
+# → http://localhost:8080
 
-# Backend runs at:
-# http://localhost:8080
-
-
-# 2. Start Frontend
+# 2. Start frontend
 cd ../frontend
 npm install
 npm run dev
-
-# Frontend runs at:
-# http://localhost:3000
-
-Frontend → http://localhost:3000
+# → http://localhost:3000
+```

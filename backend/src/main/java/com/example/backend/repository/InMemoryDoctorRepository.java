@@ -71,4 +71,9 @@ public class InMemoryDoctorRepository implements DoctorRepository {
         doctors.put(doctor.getId(), doctor);
         return doctor;
     }
+
+    @Override
+    public synchronized boolean deleteById(long id) {
+        return doctors.remove(id) != null;
+    }
 }

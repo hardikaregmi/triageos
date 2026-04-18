@@ -8,6 +8,11 @@ export default function DoctorsPage() {
   const [patients, setPatients] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [error, setError] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newSpecialty, setNewSpecialty] = useState("");
+  const [newStatus, setNewStatus] = useState("available");
+  const [addBusy, setAddBusy] = useState(false);
+  const [deleteBusyId, setDeleteBusyId] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -100,6 +105,76 @@ export default function DoctorsPage() {
     }
   }
 
+  async function addDoctor(e) {
+    e.preventDefault();
+    const name = newName.trim();
+    const specialty = newSpecialty.trim();
+    if (!name || !specialty) {
+      setError("Enter a name and specialty to add a physician.");
+      return;
+    }
+    setError("");
+    setAddBusy(true);
+    try {
+      const response = await fetch(`${API_BASE}/doctors`, {
+        method: "POST",
+        headers: authHeaders(true),
+        body: JSON.stringify({ name, specialty, status: newStatus }),
+      });
+      if (handleUnauthorized(response, router)) {
+        return;
+      }
+      if (response.status === 400) {
+        setError("Name and specialty are required.");
+        return;
+      }
+      if (!response.ok) {
+        throw new Error("Request failed");
+      }
+      setNewName("");
+      setNewSpecialty("");
+      setNewStatus("available");
+      await refreshDoctorAndSummaryData();
+    } catch (err) {
+      setError("Could not add physician. Please try again.");
+    } finally {
+      setAddBusy(false);
+    }
+  }
+
+  async function removeDoctor(doctor) {
+    if (
+      typeof window !== "undefined" &&
+      !window.confirm(`Remove ${doctor.name} from the roster? They will no longer appear for assignments.`)
+    ) {
+      return;
+    }
+    setError("");
+    setDeleteBusyId(doctor.id);
+    try {
+      const response = await fetch(`${API_BASE}/doctors/${doctor.id}`, {
+        method: "DELETE",
+        headers: authHeaders(false),
+      });
+      if (handleUnauthorized(response, router)) {
+        return;
+      }
+      if (response.status === 404) {
+        setError("That physician is no longer on the roster.");
+        await refreshDoctorAndSummaryData();
+        return;
+      }
+      if (!response.ok) {
+        throw new Error("Request failed");
+      }
+      await refreshDoctorAndSummaryData();
+    } catch (err) {
+      setError("Could not remove physician. Please try again.");
+    } finally {
+      setDeleteBusyId(null);
+    }
+  }
+
   function initials(name) {
     if (!name) return "?";
     const p = name.trim().split(/\s+/);
@@ -111,7 +186,61 @@ export default function DoctorsPage() {
     <div className="pageContainer">
       {error && <div className="errorStripLight">{error}</div>}
 
+      <section className="medCard panelPaddingLg" style={{ marginBottom: 16 }}>
+        <h2 className="medPanelTitle" style={{ margin: "0 0 4px" }}>
+          Add a physician
+        </h2>
+        <p style={{ margin: "0 0 16px", fontSize: 14, color: "var(--text-muted)", maxWidth: 560 }}>
+          When someone joins the department, add them here so they appear in availability and triage routing.
+        </p>
+        <form onSubmit={addDoctor} style={{ display: "grid", gap: 12, maxWidth: 480 }}>
+          <div>
+            <label htmlFor="new-doctor-name" style={{ fontSize: 11, fontWeight: 600, color: "var(--text-hint)", display: "block", marginBottom: 6 }}>
+              Name
+            </label>
+            <input
+              id="new-doctor-name"
+              className="uiInput"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="e.g. Dr. Rivera"
+              autoComplete="name"
+            />
+          </div>
+          <div>
+            <label htmlFor="new-doctor-specialty" style={{ fontSize: 11, fontWeight: 600, color: "var(--text-hint)", display: "block", marginBottom: 6 }}>
+              Specialty
+            </label>
+            <input
+              id="new-doctor-specialty"
+              className="uiInput"
+              value={newSpecialty}
+              onChange={(e) => setNewSpecialty(e.target.value)}
+              placeholder="e.g. Pulmonology"
+            />
+          </div>
+          <div>
+            <label htmlFor="new-doctor-status" style={{ fontSize: 11, fontWeight: 600, color: "var(--text-hint)", display: "block", marginBottom: 6 }}>
+              Initial status
+            </label>
+            <select id="new-doctor-status" className="uiSelect" value={newStatus} onChange={(e) => setNewStatus(e.target.value)} style={{ maxWidth: 280 }}>
+              <option value="available">Available</option>
+              <option value="busy">Busy</option>
+              <option value="off shift">Off shift</option>
+            </select>
+          </div>
+          <div>
+            <button type="submit" className="btnSm btnSmPrimary" disabled={addBusy}>
+              {addBusy ? "Adding…" : "Add to roster"}
+            </button>
+          </div>
+        </form>
+      </section>
+
       <section className="medCard panelPaddingLg">
+        <h2 className="medPanelTitle" style={{ margin: "0 0 12px" }}>
+          Current roster
+        </h2>
         <div
           style={{
             display: "grid",
@@ -158,7 +287,24 @@ export default function DoctorsPage() {
                       </select>
                     </div>
                     <div style={{ marginTop: 14 }}>
-                      <p style={{ margin: "0 0 6px", fontSize: 11, fontWeight: 600, color: "var(--text-hint)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      <button
+                        type="button"
+                        className="btnSm btnSmDanger"
+                        disabled={deleteBusyId === doctor.id}
+                        onClick={() => void removeDoctor(doctor)}
+                      >
+                        {deleteBusyId === doctor.id ? "Removing…" : "Remove from roster"}
+                      </button>
+                      <p
+                        style={{
+                          margin: "14px 0 6px",
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: "var(--text-hint)",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                        }}
+                      >
                         Assigned patients
                       </p>
                       {assigned.length === 0 ? (

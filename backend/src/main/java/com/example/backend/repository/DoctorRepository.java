@@ -15,4 +15,7 @@ public interface DoctorRepository {
 
     /** Persist a new doctor or replace by id (for future hospital-scoped admin flows). */
     Doctor save(Doctor doctor);
+
+    /** @return true if a doctor with this id existed and was removed */
+    boolean deleteById(long id);
 }
