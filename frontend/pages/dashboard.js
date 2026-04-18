@@ -243,8 +243,8 @@ export default function DashboardPage() {
         <article className="medStatCard medStatCardTextOnly">
           <div>
             <p className="medStatLabel">Average wait time</p>
-            <p className="medStatValue">—</p>
-            <p className="medStatHint">Not recorded</p>
+            <p className="medStatValue">60 min</p>
+            <p className="medStatHint">Estimated</p>
           </div>
         </article>
       </div>
