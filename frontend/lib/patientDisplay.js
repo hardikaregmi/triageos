@@ -1,6 +1,4 @@
-/**
- * Primary display label for a patient (matches backend fullName / JSON name alias).
- */
+/** Primary UI label for patients (privacy-first identifier). */
 export function patientDisplayLabel(patient) {
   if (!patient) return "Patient";
   const explicitId = String(patient.patientIdentifier ?? "").trim();

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import PatientIdentitySummary from "../components/PatientIdentitySummary";
 
 const API_BASE = "http://localhost:8080";
@@ -31,8 +31,6 @@ export default function DoctorsPage() {
     }
   }
 
-  const effectiveDoctors = useMemo(() => doctors, [doctors]);
-
   function preferredDoctorsForPatient(patient) {
     if (patient.message === "Severe infection risk" || patient.message === "Possible early sepsis risk") {
       return ["Dr. Nguyen", "Dr. Patel"];
@@ -44,14 +42,14 @@ export default function DoctorsPage() {
   }
 
   function getAssignedDoctorName(patient) {
-    const available = effectiveDoctors.filter((doctor) => doctor.status === "available");
+    const available = doctors.filter((doctor) => doctor.status === "available");
     const preferred = preferredDoctorsForPatient(patient);
     const preferredAvailable = preferred.find((doctorName) =>
       available.some((doctor) => doctor.name === doctorName)
     );
     if (preferredAvailable) return preferredAvailable;
 
-    const currentlyAssigned = effectiveDoctors.find(
+    const currentlyAssigned = doctors.find(
       (doctor) => doctor.name === patient.assignedDoctor && doctor.status === "available"
     );
     if (currentlyAssigned) return currentlyAssigned.name;
@@ -104,19 +102,15 @@ export default function DoctorsPage() {
       {error && <div className="errorStripLight">{error}</div>}
 
       <section className="medCard panelPaddingLg">
-        <h2 className="medPanelTitle">Physician roster</h2>
-        <p className="medPanelHint">Status updates sync from the backend in real time.</p>
-
         <div
           style={{
-            marginTop: 16,
             display: "grid",
             gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
             gap: 14,
           }}
           className="doctorPageGrid"
         >
-          {effectiveDoctors.map((doctor) => {
+          {doctors.map((doctor) => {
             const assigned = patientsForDoctor(doctor.name);
             return (
               <article key={doctor.id} className="surfaceCard" style={{ padding: 16 }}>

@@ -1,4 +1,5 @@
 import "../styles/globals.css";
+import Head from "next/head";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
 import { AppRoleProvider } from "../contexts/AppRoleContext";
@@ -9,6 +10,10 @@ export default function App({ Component, pageProps }) {
 
   return (
     <AppRoleProvider>
+      <Head>
+        <title>TriageOS</title>
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
       {noLayout ? (
         <Component {...pageProps} />
       ) : (

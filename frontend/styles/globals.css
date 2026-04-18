@@ -2,26 +2,26 @@
 
 :root {
   color-scheme: light;
-  --bg-page: #f2f1ee;
+  --bg-page: #f4f8fc;
   --bg-elevated: #ffffff;
-  --bg-subtle: #f7f6f4;
-  --border: #e4e1db;
-  --border-strong: #d4cfc7;
-  --text: #2d3136;
-  --text-muted: #5c6168;
-  --text-hint: #767b82;
-  --accent: #4a7c62;
-  --accent-soft: #e8f0eb;
-  --accent-hover: #3d6b52;
-  --blue-muted: #5a6e7d;
-  --blue-soft: #e9eef2;
-  --danger-soft: #f7ecea;
-  --danger-text: #a34a45;
-  --warn-bg: #f8f4eb;
-  --warn-text: #8a6f3a;
-  --success-bg: #edf4ef;
-  --shadow-sm: 0 1px 2px rgba(41, 44, 51, 0.05);
-  --shadow-md: 0 2px 10px rgba(41, 44, 51, 0.06);
+  --bg-subtle: #f7fbff;
+  --border: #dbe6f2;
+  --border-strong: #c6d6e8;
+  --text: #12324a;
+  --text-muted: #4e6478;
+  --text-hint: #71869a;
+  --accent: #0e4a86;
+  --accent-soft: #e9f1fa;
+  --accent-hover: #0b3c6d;
+  --blue-muted: #2b5f95;
+  --blue-soft: #ebf3fb;
+  --danger-soft: #fceeee;
+  --danger-text: #9f3d3d;
+  --warn-bg: #fdf7ea;
+  --warn-text: #8a6a2f;
+  --success-bg: #ecf7f0;
+  --shadow-sm: 0 1px 2px rgba(16, 52, 80, 0.06);
+  --shadow-md: 0 8px 24px rgba(17, 56, 89, 0.08);
   --radius: 12px;
   --radius-sm: 8px;
   --sidebar-w: 240px;
@@ -277,7 +277,7 @@ a {
 .medSidebar {
   width: var(--sidebar-w);
   flex-shrink: 0;
-  background: #faf9f7;
+  background: linear-gradient(180deg, #f8fbff 0%, #f2f7fc 100%);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -286,8 +286,8 @@ a {
 
 .medSidebarBrand {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  align-items: center;
+  gap: 8px;
   padding: 4px 6px 16px;
   border-bottom: 1px solid var(--border);
 }
@@ -295,19 +295,33 @@ a {
 .medLogoMark {
   width: 34px;
   height: 34px;
-  border-radius: var(--radius-sm);
-  background: var(--accent);
+  border-radius: 10px;
+  background: linear-gradient(160deg, #eff6fe 0%, #e2eefb 100%);
+  border: 1px solid #ccdeef;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: #34679a;
+  transition: border-color 140ms ease, background-color 140ms ease, transform 140ms ease;
+}
+
+.medSidebarBrand:hover .medLogoMark {
+  border-color: #b8d3ea;
+  background: linear-gradient(160deg, #f2f8ff 0%, #e8f2fd 100%);
+  transform: translateY(-0.5px);
 }
 
 .medLogoMark svg {
   width: 18px;
   height: 18px;
   opacity: 0.98;
+}
+
+.medLogoMark rect {
+  stroke: currentColor;
+  strokeWidth: 1.1;
+  fill: rgba(255, 255, 255, 0.35);
 }
 
 .medLogoText {
@@ -354,7 +368,7 @@ a {
 }
 
 .medNavLink:hover {
-  background: rgba(255, 255, 255, 0.85);
+  background: #edf4fc;
   color: var(--text);
 }
 
@@ -363,9 +377,9 @@ a {
 }
 
 .medNavLink.active {
-  background: #eceae7;
+  background: #e3eef9;
   color: var(--text);
-  border-color: #e0ddd8;
+  border-color: #c9ddee;
 }
 
 .medNavLink.active .medNavIcon {
@@ -379,87 +393,6 @@ a {
   flex-direction: column;
   gap: 10px;
   padding-top: 12px;
-}
-
-.medStatusCard {
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: #ffffff;
-  font-size: 12px;
-}
-
-.medStatusCardTitle {
-  font-weight: 500;
-  margin: 0 0 6px;
-  font-size: 11px;
-  text-transform: none;
-  letter-spacing: 0;
-  color: var(--text-hint);
-}
-
-.medStatusCardTitle strong {
-  font-weight: 600;
-  color: var(--text-muted);
-}
-
-.medStatusRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-muted);
-}
-
-.medStatusDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--accent);
-  flex-shrink: 0;
-}
-
-.medStatusDot.warning {
-  background: #c4a035;
-}
-
-.medStatusDot.degraded {
-  background: #c16a6a;
-}
-
-.medProfileCard {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  background: #ffffff;
-}
-
-.medAvatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 999px;
-  background: var(--blue-soft);
-  color: var(--blue-muted);
-  display: grid;
-  place-items: center;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.medProfileName {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text);
-  margin: 0;
-  line-height: 1.25;
-}
-
-.medProfileRole {
-  margin: 1px 0 0;
-  font-size: 11px;
-  color: var(--text-hint);
 }
 
 .medStaffPanel {
@@ -480,7 +413,7 @@ a {
   gap: 10px;
   padding: 8px 10px;
   border-bottom: 1px solid var(--border);
-  background: #f3f2ef;
+  background: #eef4fb;
 }
 
 .medStaffPanelHeading {
@@ -612,7 +545,7 @@ a {
   gap: 16px;
   padding: 18px 26px 16px;
   border-bottom: 1px solid var(--border);
-  background: #fdfcfa;
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
 }
 
 .medPageTitle {
@@ -652,7 +585,7 @@ a {
   margin-top: auto;
   padding: 16px 24px 18px;
   border-top: 1px solid var(--border);
-  background: var(--bg-subtle);
+  background: #f3f8fd;
 }
 
 .medAppFooterName {
@@ -744,7 +677,7 @@ a {
 }
 
 .medTable tbody tr:hover td {
-  background: #f8f9fa;
+  background: #f1f7fd;
 }
 
 .medTableDetail td {
@@ -788,7 +721,7 @@ a {
 
 .btnSmDanger {
   color: var(--danger-text);
-  border-color: #e0caca;
+  border-color: #e8caca;
   background: var(--bg-elevated);
 }
 
@@ -824,7 +757,7 @@ a {
   border-radius: var(--radius);
   border: 1px solid var(--border);
   background: #ffffff;
-  box-shadow: none;
+  box-shadow: var(--shadow-sm);
   display: flex;
   gap: 12px;
   align-items: flex-start;
@@ -975,6 +908,15 @@ a {
   padding: 12px 14px;
 }
 
+.successStripLight {
+  border-radius: var(--radius-sm);
+  border: 1px solid #b9e2ca;
+  background: #f1fbf5;
+  color: #1f6f45;
+  font-size: 14px;
+  padding: 12px 14px;
+}
+
 .modalOverlayLight {
   position: fixed;
   inset: 0;
@@ -1040,7 +982,7 @@ a {
   font-weight: 500;
   color: var(--danger-text);
   background: var(--danger-soft);
-  border: 1px solid #ecd9d6;
+  border: 1px solid #f0d6d2;
 }
 
 .queueToolbarActions {

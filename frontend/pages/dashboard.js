@@ -187,25 +187,6 @@ export default function DashboardPage() {
     }
   }
 
-  async function triagePatient(patientId, e) {
-    e.stopPropagation();
-    setLoadingMap((prev) => ({ ...prev, [`triage-${patientId}`]: true }));
-    setGlobalError("");
-    try {
-      const response = await fetch(`${API_BASE}/patients/${patientId}/triage`, {
-        method: "POST",
-      });
-      if (!response.ok) {
-        throw new Error("Request failed");
-      }
-      await loadDashboard();
-    } catch (err) {
-      setGlobalError("Could not triage patient. Please try again.");
-    } finally {
-      setLoadingMap((prev) => ({ ...prev, [`triage-${patientId}`]: false }));
-    }
-  }
-
   async function removePatient(patientId, e) {
     e.stopPropagation();
     setLoadingMap((prev) => ({ ...prev, [`remove-${patientId}`]: true }));
@@ -287,7 +268,7 @@ export default function DashboardPage() {
               </div>
               <div className="queueToolbarActions">
                 <Link href="/doctors" className="medLinkQuiet">
-                  Physician roster
+                  Available doctors
                 </Link>
                 <button type="button" className="primaryButton" onClick={() => setShowIntakeModal(true)}>
                   + New patient
@@ -353,14 +334,6 @@ export default function DashboardPage() {
                         </td>
                         <td onClick={(e) => e.stopPropagation()}>
                           <div className="medTableActions">
-                            <button
-                              type="button"
-                              className="btnSm btnSmPrimary"
-                              onClick={(e) => triagePatient(patient.id, e)}
-                              disabled={!!loadingMap[`triage-${patient.id}`]}
-                            >
-                              {loadingMap[`triage-${patient.id}`] ? "…" : "Triage"}
-                            </button>
                             <button
                               type="button"
                               className="btnSm btnSmDanger"
@@ -437,9 +410,6 @@ export default function DashboardPage() {
               <h2 className="medPanelTitle" style={{ margin: 0 }}>
                 Doctors on duty
               </h2>
-              <p className="medPanelHint" style={{ margin: "4px 0 0" }}>
-                Live roster from server
-              </p>
             </div>
             <Link href="/doctors" className="medLinkQuiet">
               View all

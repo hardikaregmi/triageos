@@ -50,7 +50,7 @@ function greetingForHour(h) {
 
 function titleForRoute(pathname) {
   if (pathname === "/dashboard") return "Hospital overview";
-  if (pathname === "/doctors") return "Physician roster";
+  if (pathname === "/doctors") return "Doctors";
   if (pathname === "/about") return "About";
   return "TriageOS";
 }
@@ -67,13 +67,9 @@ export default function Layout({ children }) {
   const router = useRouter();
   const { role: appRole, hospitalId } = useAppRole();
   const [now, setNow] = useState(() => new Date());
-  const [nurseName, setNurseName] = useState("R. Morgan");
   const [nurseStaffId, setNurseStaffId] = useState("N-0104");
   const [station, setStation] = useState(NURSE_STATION_OPTIONS[1]);
   const [nurseStatus, setNurseStatus] = useState("on-duty");
-  const [systemStatus, setSystemStatus] = useState("active");
-  const [systemStatusText, setSystemStatusText] = useState("System active");
-  const [systemStatusDetail, setSystemStatusDetail] = useState("Checking backend status...");
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 30000);
@@ -81,49 +77,10 @@ export default function Layout({ children }) {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function refreshSystemStatus() {
-      try {
-        const response = await fetch(`${API_BASE}/dashboard/summary`);
-        if (!response.ok) {
-          throw new Error("Failed request");
-        }
-        const summary = await response.json();
-        if (cancelled) return;
-        const availableDoctors = Number(summary.availableDoctors ?? 0);
-        if (availableDoctors > 0) {
-          setSystemStatus("active");
-          setSystemStatusText("System active");
-          setSystemStatusDetail(`${availableDoctors} doctors available`);
-        } else {
-          setSystemStatus("warning");
-          setSystemStatusText("System degraded");
-          setSystemStatusDetail("No doctors currently available");
-        }
-      } catch {
-        if (cancelled) return;
-        setSystemStatus("degraded");
-        setSystemStatusText("System unavailable");
-        setSystemStatusDetail("Backend connection issue");
-      }
-    }
-
-    refreshSystemStatus();
-    const interval = setInterval(refreshSystemStatus, 30000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, []);
-
-  useEffect(() => {
     try {
-      const n = localStorage.getItem(NURSE_SESSION.name);
       const id = localStorage.getItem(NURSE_SESSION.staffId);
       const s = localStorage.getItem(NURSE_SESSION.station);
       const st = localStorage.getItem(NURSE_SESSION.status);
-      if (n) setNurseName(n);
       if (id) setNurseStaffId(normalizeNurseStaffId(id));
       if (s && NURSE_STATION_OPTIONS.includes(s)) setStation(s);
       if (st === "on-duty" || st === "break" || st === "offline") setNurseStatus(st);
@@ -131,14 +88,6 @@ export default function Layout({ children }) {
       /* ignore */
     }
   }, []);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(NURSE_SESSION.name, nurseName);
-    } catch {
-      /* ignore */
-    }
-  }, [nurseName]);
 
   useEffect(() => {
     try {
@@ -170,15 +119,12 @@ export default function Layout({ children }) {
   const headerTitle = useMemo(() => {
     const path = router.pathname;
     if (path === "/" || path === "/dashboard") {
-      return `${greetingForHour(now.getHours())}, Nurse ID ${nurseStaffId}`;
+      return `${greetingForHour(now.getHours())}`;
     }
     return titleForRoute(path);
-  }, [router.pathname, now, nurseStaffId]);
+  }, [router.pathname, now]);
 
-  const headerSub =
-    router.pathname === "/" || router.pathname === "/dashboard"
-      ? `${subtitleForRoute(router.pathname)} Signed in as ${nurseName || "Nurse"}.`
-      : subtitleForRoute(router.pathname);
+  const headerSub = subtitleForRoute(router.pathname);
 
   const timeStr = now.toLocaleString(undefined, {
     weekday: "long",
@@ -207,10 +153,11 @@ export default function Layout({ children }) {
         <div className="medSidebarBrand">
           <span className="medLogoMark" aria-hidden>
             <svg viewBox="0 0 24 24" fill="none">
+              <rect x="3.5" y="3.5" width="17" height="17" rx="4.5" />
               <path
-                d="M12 5v14M5 12h14"
+                d="M12 8v8M8 12h8"
                 stroke="currentColor"
-                strokeWidth="2.25"
+                strokeWidth="1.85"
                 strokeLinecap="round"
               />
             </svg>
@@ -235,16 +182,6 @@ export default function Layout({ children }) {
         </nav>
 
         <div className="medSidebarFooter">
-          <div className="medStatusCard">
-            <p className="medStatusCardTitle">
-              <strong>{systemStatusText}</strong>
-            </p>
-            <div className="medStatusRow">
-              <span className={`medStatusDot ${systemStatus}`} />
-              <span>{systemStatusDetail}</span>
-            </div>
-          </div>
-
           <section className="medStaffPanel" aria-label="Nurse station">
             <header className="medStaffPanelBar">
               <h2 className="medStaffPanelHeading">Nurse ID {nurseStaffId}</h2>
@@ -289,21 +226,6 @@ export default function Layout({ children }) {
                   onChange={(e) => setNurseStaffId(normalizeNurseStaffId(e.target.value))}
                   placeholder="N-0104"
                   autoComplete="off"
-                />
-              </div>
-
-              <div className="medStaffField">
-                <label className="medStaffFieldLabel" htmlFor="staff-nurse-name">
-                  Nurse name (secondary)
-                </label>
-                <input
-                  id="staff-nurse-name"
-                  className="uiInput medStaffInput"
-                  type="text"
-                  value={nurseName}
-                  onChange={(e) => setNurseName(e.target.value)}
-                  placeholder="Name for intake and charting"
-                  autoComplete="name"
                 />
               </div>
 

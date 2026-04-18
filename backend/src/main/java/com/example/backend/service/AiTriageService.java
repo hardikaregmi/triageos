@@ -74,7 +74,7 @@ public class AiTriageService {
                 Field rules:
                 - priority: one of EMERGENT, URGENT, LESS_URGENT, NON_URGENT (clinical acuity).
                 - concern: short primary clinical concern (one sentence).
-                - reasoning: brief explanation referencing vitals and symptoms.
+                - reasoning: 1-2 short sentences in natural, human language that a nurse can quickly understand, referencing key vitals and symptoms; avoid robotic phrasing.
                 - recommendedAction: concrete next step (e.g. immediate provider, monitoring, labs).
                 - suggestedSpecialty: best-matching specialty label (e.g. Emergency Medicine, Cardiology, Internal Medicine, General Practice).
                 - confidence: estimated certainty as a percentage string (e.g. "85%").

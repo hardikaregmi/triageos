@@ -12,6 +12,8 @@ public class TestingDatasetImportProperties {
      * When false, dataset import beans and HTTP endpoints are not registered.
      */
     private boolean importEnabled = true;
+    /** Auto-load a small dataset sample at startup when patient list is empty. */
+    private boolean autoLoad = false;
 
     /**
      * Optional path: absolute/relative file path, or {@code classpath:...} for packaged test fixtures.
@@ -33,5 +35,13 @@ public class TestingDatasetImportProperties {
 
     public void setCsvPath(String csvPath) {
         this.csvPath = csvPath;
+    }
+
+    public boolean isAutoLoad() {
+        return autoLoad;
+    }
+
+    public void setAutoLoad(boolean autoLoad) {
+        this.autoLoad = autoLoad;
     }
 }
