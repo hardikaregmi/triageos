@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { Fragment, useEffect, useMemo, useState } from "react";
+import PatientIdentitySummary from "../components/PatientIdentitySummary";
+import { NURSE_SESSION, isNurseLoggedIn } from "../constants/nurseSession";
+import { patientDisplayLabel } from "../lib/patientDisplay";
 
 const API_BASE = "http://localhost:8080";
 
@@ -91,18 +94,39 @@ export default function DashboardPage() {
   const [showIntakeModal, setShowIntakeModal] = useState(false);
   const [intakeForm, setIntakeForm] = useState(emptyIntakeForm);
   const [expandedId, setExpandedId] = useState(null);
-
-  useEffect(() => {
-    loadDashboard();
-  }, []);
+  const [sessionReady, setSessionReady] = useState(false);
 
   useEffect(() => {
     if (!router.isReady) return;
+    const loggedIn = isNurseLoggedIn();
+    if (!loggedIn) {
+      router.replace("/nurse-login");
+      return;
+    }
+    try {
+      const nurseName = localStorage.getItem(NURSE_SESSION.name);
+      if (nurseName && nurseName.trim()) {
+        setIntakeForm((prev) => ({ ...prev, triageNurseName: nurseName.trim() }));
+      }
+    } catch {
+      /* ignore */
+    }
+    setSessionReady(true);
+  }, [router]);
+
+  useEffect(() => {
+    if (!sessionReady) return;
+    loadDashboard();
+  }, [sessionReady]);
+
+  useEffect(() => {
+    if (!router.isReady) return;
+    if (!sessionReady) return;
     if (router.query.intake === "1") {
       setShowIntakeModal(true);
       router.replace("/dashboard", undefined, { shallow: true });
     }
-  }, [router.isReady, router.query.intake, router]);
+  }, [router.isReady, router.query.intake, router, sessionReady]);
 
   async function loadDashboard() {
     setGlobalError("");
@@ -294,7 +318,7 @@ export default function DashboardPage() {
                   </tr>
                 )}
                 {sortedPatients.map((patient) => {
-                  const displayName = patient.name ?? patient.fullName ?? "Patient";
+                  const displayName = patientDisplayLabel(patient);
                   const badge = priorityBadge(patient);
                   const triaged = patient.risk != null;
                   const isOpen = expandedId === patient.id;
@@ -303,11 +327,10 @@ export default function DashboardPage() {
                       <tr
                         onClick={() => toggleExpand(patient.id)}
                         style={{ cursor: "pointer" }}
-                        title="Show details"
+                        title={`Details for ${displayName}`}
                       >
                         <td>
-                          <div className="patientCellName">{displayName}</div>
-                          {patient.roomNumber && <div className="patientCellRoom">Room {patient.roomNumber}</div>}
+                          <PatientIdentitySummary patient={patient} />
                           <div className="tableMuted">
                             {patient.chiefComplaint
                               ? patient.chiefComplaint.slice(0, 44) + (patient.chiefComplaint.length > 44 ? "…" : "")
@@ -353,7 +376,8 @@ export default function DashboardPage() {
                         <tr className="medTableDetail">
                           <td colSpan={7}>
                             <div style={{ padding: 16, fontSize: 13 }}>
-                              <p style={{ margin: "0 0 10px", fontWeight: 600, color: "var(--text-muted)" }}>
+                              <PatientIdentitySummary patient={patient} />
+                              <p style={{ margin: "12px 0 10px", fontWeight: 600, color: "var(--text-muted)" }}>
                                 Intake & vitals
                               </p>
                               <p style={{ margin: "0 0 8px", color: "var(--text)" }}>

@@ -1,18 +1,12 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
+import { useAppRole } from "../contexts/AppRoleContext";
+import { NURSE_SESSION, NURSE_STATION_OPTIONS, normalizeNurseStaffId } from "../constants/nurseSession";
+
+const API_BASE = "http://localhost:8080";
 
 const navItems = [
-  {
-    href: "/",
-    label: "Home",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden>
-        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-        <path d="M9 22V12h6v10" />
-      </svg>
-    ),
-  },
   {
     href: "/dashboard",
     label: "Dashboard",
@@ -69,24 +63,17 @@ function subtitleForRoute(pathname) {
   return "";
 }
 
-const STAFF_STORAGE = {
-  name: "triageos_staff_name",
-  station: "triageos_staff_station",
-  status: "triageos_staff_status",
-};
-
-const STATION_OPTIONS = [
-  "Triage · Station 1 · Floor 2",
-  "Triage · Station 2 · Floor 3",
-  "ED · Fast track · Floor 1",
-];
-
 export default function Layout({ children }) {
   const router = useRouter();
+  const { role: appRole, hospitalId } = useAppRole();
   const [now, setNow] = useState(() => new Date());
   const [nurseName, setNurseName] = useState("R. Morgan");
-  const [station, setStation] = useState(STATION_OPTIONS[1]);
+  const [nurseStaffId, setNurseStaffId] = useState("N-0104");
+  const [station, setStation] = useState(NURSE_STATION_OPTIONS[1]);
   const [nurseStatus, setNurseStatus] = useState("on-duty");
+  const [systemStatus, setSystemStatus] = useState("active");
+  const [systemStatusText, setSystemStatusText] = useState("System active");
+  const [systemStatusDetail, setSystemStatusDetail] = useState("Checking backend status...");
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 30000);
@@ -94,12 +81,51 @@ export default function Layout({ children }) {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function refreshSystemStatus() {
+      try {
+        const response = await fetch(`${API_BASE}/dashboard/summary`);
+        if (!response.ok) {
+          throw new Error("Failed request");
+        }
+        const summary = await response.json();
+        if (cancelled) return;
+        const availableDoctors = Number(summary.availableDoctors ?? 0);
+        if (availableDoctors > 0) {
+          setSystemStatus("active");
+          setSystemStatusText("System active");
+          setSystemStatusDetail(`${availableDoctors} doctors available`);
+        } else {
+          setSystemStatus("warning");
+          setSystemStatusText("System degraded");
+          setSystemStatusDetail("No doctors currently available");
+        }
+      } catch {
+        if (cancelled) return;
+        setSystemStatus("degraded");
+        setSystemStatusText("System unavailable");
+        setSystemStatusDetail("Backend connection issue");
+      }
+    }
+
+    refreshSystemStatus();
+    const interval = setInterval(refreshSystemStatus, 30000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
+
+  useEffect(() => {
     try {
-      const n = localStorage.getItem(STAFF_STORAGE.name);
-      const s = localStorage.getItem(STAFF_STORAGE.station);
-      const st = localStorage.getItem(STAFF_STORAGE.status);
+      const n = localStorage.getItem(NURSE_SESSION.name);
+      const id = localStorage.getItem(NURSE_SESSION.staffId);
+      const s = localStorage.getItem(NURSE_SESSION.station);
+      const st = localStorage.getItem(NURSE_SESSION.status);
       if (n) setNurseName(n);
-      if (s && STATION_OPTIONS.includes(s)) setStation(s);
+      if (id) setNurseStaffId(normalizeNurseStaffId(id));
+      if (s && NURSE_STATION_OPTIONS.includes(s)) setStation(s);
       if (st === "on-duty" || st === "break" || st === "offline") setNurseStatus(st);
     } catch {
       /* ignore */
@@ -108,7 +134,7 @@ export default function Layout({ children }) {
 
   useEffect(() => {
     try {
-      localStorage.setItem(STAFF_STORAGE.name, nurseName);
+      localStorage.setItem(NURSE_SESSION.name, nurseName);
     } catch {
       /* ignore */
     }
@@ -116,7 +142,15 @@ export default function Layout({ children }) {
 
   useEffect(() => {
     try {
-      localStorage.setItem(STAFF_STORAGE.station, station);
+      localStorage.setItem(NURSE_SESSION.staffId, nurseStaffId);
+    } catch {
+      /* ignore */
+    }
+  }, [nurseStaffId]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(NURSE_SESSION.station, station);
     } catch {
       /* ignore */
     }
@@ -124,7 +158,7 @@ export default function Layout({ children }) {
 
   useEffect(() => {
     try {
-      localStorage.setItem(STAFF_STORAGE.status, nurseStatus);
+      localStorage.setItem(NURSE_SESSION.status, nurseStatus);
     } catch {
       /* ignore */
     }
@@ -136,12 +170,15 @@ export default function Layout({ children }) {
   const headerTitle = useMemo(() => {
     const path = router.pathname;
     if (path === "/" || path === "/dashboard") {
-      return `${greetingForHour(now.getHours())}, Nurse`;
+      return `${greetingForHour(now.getHours())}, Nurse ID ${nurseStaffId}`;
     }
     return titleForRoute(path);
-  }, [router.pathname, now]);
+  }, [router.pathname, now, nurseStaffId]);
 
-  const headerSub = subtitleForRoute(router.pathname);
+  const headerSub =
+    router.pathname === "/" || router.pathname === "/dashboard"
+      ? `${subtitleForRoute(router.pathname)} Signed in as ${nurseName || "Nurse"}.`
+      : subtitleForRoute(router.pathname);
 
   const timeStr = now.toLocaleString(undefined, {
     weekday: "long",
@@ -151,8 +188,21 @@ export default function Layout({ children }) {
     minute: "2-digit",
   });
 
+  function logoutNurseSession() {
+    try {
+      localStorage.removeItem(NURSE_SESSION.loggedIn);
+      localStorage.removeItem(NURSE_SESSION.name);
+      localStorage.removeItem(NURSE_SESSION.staffId);
+      localStorage.removeItem(NURSE_SESSION.station);
+      localStorage.removeItem(NURSE_SESSION.status);
+    } catch {
+      /* ignore */
+    }
+    router.replace("/nurse-login");
+  }
+
   return (
-    <div className="medShell">
+    <div className="medShell" data-app-role={appRole} data-hospital-id={hospitalId}>
       <aside className="medSidebar">
         <div className="medSidebarBrand">
           <span className="medLogoMark" aria-hidden>
@@ -187,17 +237,17 @@ export default function Layout({ children }) {
         <div className="medSidebarFooter">
           <div className="medStatusCard">
             <p className="medStatusCardTitle">
-              <strong>System active</strong>
+              <strong>{systemStatusText}</strong>
             </p>
             <div className="medStatusRow">
-              <span className="medStatusDot" />
-              <span>All channels connected</span>
+              <span className={`medStatusDot ${systemStatus}`} />
+              <span>{systemStatusDetail}</span>
             </div>
           </div>
 
           <section className="medStaffPanel" aria-label="Nurse station">
             <header className="medStaffPanelBar">
-              <h2 className="medStaffPanelHeading">Nurse station</h2>
+              <h2 className="medStaffPanelHeading">Nurse ID {nurseStaffId}</h2>
               <div className="medStaffPresence" aria-live="polite">
                 <span
                   className={`medStaffPresenceLed medStaffPresenceLed--${nurseStatus}`}
@@ -219,7 +269,7 @@ export default function Layout({ children }) {
                   value={station}
                   onChange={(e) => setStation(e.target.value)}
                 >
-                  {STATION_OPTIONS.map((opt) => (
+                  {NURSE_STATION_OPTIONS.map((opt) => (
                     <option key={opt} value={opt}>
                       {opt}
                     </option>
@@ -228,8 +278,23 @@ export default function Layout({ children }) {
               </div>
 
               <div className="medStaffField">
+                <label className="medStaffFieldLabel" htmlFor="staff-nurse-id">
+                  Nurse ID
+                </label>
+                <input
+                  id="staff-nurse-id"
+                  className="uiInput medStaffInput"
+                  type="text"
+                  value={nurseStaffId}
+                  onChange={(e) => setNurseStaffId(normalizeNurseStaffId(e.target.value))}
+                  placeholder="N-0104"
+                  autoComplete="off"
+                />
+              </div>
+
+              <div className="medStaffField">
                 <label className="medStaffFieldLabel" htmlFor="staff-nurse-name">
-                  Signed in as
+                  Nurse name (secondary)
                 </label>
                 <input
                   id="staff-nurse-name"
@@ -266,6 +331,9 @@ export default function Layout({ children }) {
               <Link href="/dashboard" className="medStaffLinkSecondary">
                 Open dashboard
               </Link>
+              <button type="button" className="medStaffLinkSecondary medStaffLinkButton" onClick={logoutNurseSession}>
+                Logout
+              </button>
             </div>
           </section>
         </div>

@@ -1,5 +1,6 @@
 package com.example.backend.service;
 
+import com.example.backend.model.Hospital;
 import com.example.backend.model.Patient;
 import com.example.backend.model.TriageResult;
 import com.example.backend.repository.DoctorRepository;
@@ -38,8 +39,17 @@ public class PatientService {
 
     public Patient createPatient(Patient intake) {
         intake.setId(null);
+        intake.setPatientIdentifier(null);
         intake.setTriageResult(null);
-        return patientRepository.save(intake);
+        if (intake.getHospitalId() == null) {
+            intake.setHospitalId(Hospital.DEFAULT_ID);
+        }
+        Patient saved = patientRepository.save(intake);
+        if (saved.getPatientIdentifier() == null || saved.getPatientIdentifier().isBlank()) {
+            saved.setPatientIdentifier(formatPatientIdentifier(saved.getId()));
+            saved = patientRepository.save(saved);
+        }
+        return saved;
     }
 
     public boolean deletePatient(long id) {
@@ -58,5 +68,10 @@ public class PatientService {
         }
         patient.setTriageResult(result);
         return Optional.of(patientRepository.save(patient));
+    }
+
+    private static String formatPatientIdentifier(Long id) {
+        long safeId = id == null ? 0L : id;
+        return String.format("PT-%04d", safeId);
     }
 }

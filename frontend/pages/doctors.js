@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
+import PatientIdentitySummary from "../components/PatientIdentitySummary";
 
 const API_BASE = "http://localhost:8080";
 
 export default function DoctorsPage() {
   const [patients, setPatients] = useState([]);
   const [doctors, setDoctors] = useState([]);
-  const [doctorStatusOverrides, setDoctorStatusOverrides] = useState({});
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -31,12 +31,7 @@ export default function DoctorsPage() {
     }
   }
 
-  const effectiveDoctors = useMemo(() => {
-    return doctors.map((doctor) => ({
-      ...doctor,
-      status: doctorStatusOverrides[doctor.id] || doctor.status,
-    }));
-  }, [doctors, doctorStatusOverrides]);
+  const effectiveDoctors = useMemo(() => doctors, [doctors]);
 
   function preferredDoctorsForPatient(patient) {
     if (patient.message === "Severe infection risk" || patient.message === "Possible early sepsis risk") {
@@ -68,8 +63,33 @@ export default function DoctorsPage() {
     return patients.filter((patient) => getAssignedDoctorName(patient) === doctorName);
   }
 
-  function updateDoctorStatus(doctorId, status) {
-    setDoctorStatusOverrides((prev) => ({ ...prev, [doctorId]: status }));
+  async function refreshDoctorAndSummaryData() {
+    const [doctorsRes, summaryRes] = await Promise.all([
+      fetch(`${API_BASE}/doctors`),
+      fetch(`${API_BASE}/dashboard/summary`),
+    ]);
+    if (!doctorsRes.ok || !summaryRes.ok) {
+      throw new Error("Failed request");
+    }
+    const doctorsData = await doctorsRes.json();
+    setDoctors(doctorsData);
+  }
+
+  async function updateDoctorStatus(doctorId, status) {
+    setError("");
+    try {
+      const response = await fetch(`${API_BASE}/doctors/${doctorId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!response.ok) {
+        throw new Error("Request failed");
+      }
+      await refreshDoctorAndSummaryData();
+    } catch (err) {
+      setError("Could not update doctor status. Please try again.");
+    }
   }
 
   function initials(name) {
@@ -85,7 +105,7 @@ export default function DoctorsPage() {
 
       <section className="medCard panelPaddingLg">
         <h2 className="medPanelTitle">Physician roster</h2>
-        <p className="medPanelHint">Status selection is local preview only for this browser session.</p>
+        <p className="medPanelHint">Status updates sync from the backend in real time.</p>
 
         <div
           style={{
@@ -125,7 +145,7 @@ export default function DoctorsPage() {
                         className="uiSelect"
                         id={`doctor-status-${doctor.id}`}
                         value={doctor.status}
-                        onChange={(e) => updateDoctorStatus(doctor.id, e.target.value)}
+                        onChange={(e) => void updateDoctorStatus(doctor.id, e.target.value)}
                         style={{ width: "100%", maxWidth: 220 }}
                       >
                         <option value="available">Available</option>
@@ -142,7 +162,9 @@ export default function DoctorsPage() {
                       ) : (
                         <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, color: "var(--text-muted)" }}>
                           {assigned.map((patient) => (
-                            <li key={patient.id}>{patient.name ?? patient.fullName}</li>
+                            <li key={patient.id}>
+                              <PatientIdentitySummary patient={patient} />
+                            </li>
                           ))}
                         </ul>
                       )}

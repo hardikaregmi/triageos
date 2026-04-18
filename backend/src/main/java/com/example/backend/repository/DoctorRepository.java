@@ -12,4 +12,7 @@ public interface DoctorRepository {
     Optional<Doctor> findById(long id);
 
     Optional<Doctor> updateStatus(long id, String status);
+
+    /** Persist a new doctor or replace by id (for future hospital-scoped admin flows). */
+    Doctor save(Doctor doctor);
 }

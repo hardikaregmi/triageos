@@ -1,6 +1,8 @@
 package com.example.backend.repository;
 
 import com.example.backend.model.Doctor;
+import com.example.backend.model.Hospital;
+import com.example.backend.model.StaffRole;
 import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
@@ -9,11 +11,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Repository
 public class InMemoryDoctorRepository implements DoctorRepository {
 
     private final Map<Long, Doctor> doctors = new ConcurrentHashMap<>();
+    /** Next id for dynamically added doctors (seed uses 1–4). */
+    private final AtomicLong idGenerator = new AtomicLong(5);
 
     public InMemoryDoctorRepository() {
         seedDoctors();
@@ -50,5 +55,20 @@ public class InMemoryDoctorRepository implements DoctorRepository {
         }
         doctor.setStatus(status);
         return Optional.of(doctor);
+    }
+
+    @Override
+    public synchronized Doctor save(Doctor doctor) {
+        if (doctor.getHospitalId() == null) {
+            doctor.setHospitalId(Hospital.DEFAULT_ID);
+        }
+        if (doctor.getRole() == null) {
+            doctor.setRole(StaffRole.DOCTOR);
+        }
+        if (doctor.getId() == null) {
+            doctor.setId(idGenerator.getAndIncrement());
+        }
+        doctors.put(doctor.getId(), doctor);
+        return doctor;
     }
 }

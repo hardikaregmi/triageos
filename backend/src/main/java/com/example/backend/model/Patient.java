@@ -8,6 +8,12 @@ import com.fasterxml.jackson.annotation.JsonUnwrapped;
 public class Patient {
 
     private Long id;
+    /** Hospital (tenant) this encounter belongs to. */
+    private Long hospitalId;
+    /** Future: submitting staff user id when auth exists (nullable). */
+    private Long userId;
+    /** Stable non-PII patient-facing identifier (e.g. PT-0001). */
+    private String patientIdentifier;
     private String fullName;
     private int age;
     private String sex;
@@ -27,6 +33,8 @@ public class Patient {
     private String triageNurseName;
     private String departmentNeeded;
     private String priorityNote;
+    /** True when created from the CSV testing import (privacy-safe display id in {@link #fullName}). */
+    private boolean importedFromDataset;
 
     @JsonUnwrapped
     private TriageResult triageResult;
@@ -42,6 +50,30 @@ public class Patient {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public Long getHospitalId() {
+        return hospitalId;
+    }
+
+    public void setHospitalId(Long hospitalId) {
+        this.hospitalId = hospitalId;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
+
+    public String getPatientIdentifier() {
+        return patientIdentifier;
+    }
+
+    public void setPatientIdentifier(String patientIdentifier) {
+        this.patientIdentifier = patientIdentifier;
     }
 
     public String getFullName() {
@@ -194,6 +226,14 @@ public class Patient {
 
     public void setPriorityNote(String priorityNote) {
         this.priorityNote = priorityNote;
+    }
+
+    public boolean isImportedFromDataset() {
+        return importedFromDataset;
+    }
+
+    public void setImportedFromDataset(boolean importedFromDataset) {
+        this.importedFromDataset = importedFromDataset;
     }
 
     public TriageResult getTriageResult() {

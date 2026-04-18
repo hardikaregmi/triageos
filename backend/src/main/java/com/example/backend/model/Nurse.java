@@ -1,34 +1,26 @@
 package com.example.backend.model;
 
-public class Doctor {
+/**
+ * Nurse roster entry scoped to a hospital; distinct from {@link Doctor} but same role model.
+ */
+public class Nurse {
 
     private Long id;
     private Long hospitalId;
     /** Future link to authenticated platform user (nullable until auth exists). */
     private Long userId;
-    private StaffRole role = StaffRole.DOCTOR;
+    private StaffRole role = StaffRole.NURSE;
     private String name;
-    private String specialty;
-    private String status;
 
-    public Doctor() {
+    public Nurse() {
     }
 
-    /**
-     * Legacy constructor — seeds default hospital and doctor role (keeps existing call sites working).
-     */
-    public Doctor(Long id, String name, String specialty, String status) {
-        this(id, Hospital.DEFAULT_ID, null, StaffRole.DOCTOR, name, specialty, status);
-    }
-
-    public Doctor(Long id, Long hospitalId, Long userId, StaffRole role, String name, String specialty, String status) {
+    public Nurse(Long id, Long hospitalId, Long userId, StaffRole role, String name) {
         this.id = id;
         this.hospitalId = hospitalId;
         this.userId = userId;
-        this.role = role != null ? role : StaffRole.DOCTOR;
+        this.role = role != null ? role : StaffRole.NURSE;
         this.name = name;
-        this.specialty = specialty;
-        this.status = status;
     }
 
     public Long getId() {
@@ -69,21 +61,5 @@ public class Doctor {
 
     public void setName(String name) {
         this.name = name;
-    }
-
-    public String getSpecialty() {
-        return specialty;
-    }
-
-    public void setSpecialty(String specialty) {
-        this.specialty = specialty;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
     }
 }

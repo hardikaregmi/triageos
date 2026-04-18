@@ -418,6 +418,14 @@ a {
   flex-shrink: 0;
 }
 
+.medStatusDot.warning {
+  background: #c4a035;
+}
+
+.medStatusDot.degraded {
+  background: #c16a6a;
+}
+
 .medProfileCard {
   display: flex;
   align-items: center;
@@ -580,6 +588,12 @@ a {
 .medStaffLinkSecondary:hover {
   color: var(--blue-muted);
   text-decoration: underline;
+}
+
+.medStaffLinkButton {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
 }
 
 .medWorkspace {
@@ -1096,12 +1110,26 @@ a {
   font-weight: 600;
   color: var(--text);
   font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.patientCellSecondaryName {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
 }
 
 .patientCellRoom {
   font-size: 12px;
   color: var(--text-hint);
   margin-top: 2px;
+}
+
+.patientCellImport {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  letter-spacing: 0.01em;
 }
 
 .dashPanelHead {

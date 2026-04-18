@@ -1,5 +1,6 @@
 package com.example.backend.testing.dataset;
 
+import com.example.backend.model.Hospital;
 import com.example.backend.model.Patient;
 
 import java.time.Instant;
@@ -15,7 +16,7 @@ import java.util.Locale;
 public final class DatasetPatientMapper {
 
     private static final String NURSE = "Dataset Nurse";
-    private static final String NOTE = "Imported from public dataset";
+    private static final String NOTE = "Imported dataset case";
     private static final DateTimeFormatter ARRIVAL_FMT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.systemDefault());
 
@@ -27,9 +28,12 @@ public final class DatasetPatientMapper {
      */
     public static Patient toPatient(DatasetRow row, int csvRowIndex) {
         Patient p = new Patient();
-        int displayNum = csvRowIndex + 1;
-        p.setFullName("Dataset Patient " + displayNum);
-        p.setRoomNumber("SIM-" + displayNum);
+        p.setHospitalId(Hospital.DEFAULT_ID);
+        p.setUserId(null);
+        int ordinal = csvRowIndex + 1;
+        p.setFullName("Imported dataset case");
+        p.setRoomNumber("SIM-" + String.format(Locale.ROOT, "%04d", ordinal));
+        p.setImportedFromDataset(true);
         p.setAge(Math.max(row.age(), 1));
         p.setSex(normalizeSex(row.gender()));
         p.setBloodPressure(row.bloodPressure().isBlank() ? "Unknown" : row.bloodPressure());
