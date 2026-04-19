@@ -3,6 +3,17 @@ import { useRouter } from "next/router";
 import PatientIdentitySummary from "../components/PatientIdentitySummary";
 import { API_BASE, authHeaders, handleUnauthorized } from "../lib/api";
 
+function formatAlertTimestamp(iso) {
+  if (iso == null || iso === "") return "—";
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  } catch {
+    return "—";
+  }
+}
+
 export default function DoctorsPage() {
   const router = useRouter();
   const [patients, setPatients] = useState([]);
@@ -13,6 +24,8 @@ export default function DoctorsPage() {
   const [newStatus, setNewStatus] = useState("available");
   const [addBusy, setAddBusy] = useState(false);
   const [deleteBusyId, setDeleteBusyId] = useState(null);
+  const [doctorAlertGroups, setDoctorAlertGroups] = useState([]);
+  const [ackBusyId, setAckBusyId] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -35,8 +48,42 @@ export default function DoctorsPage() {
       const [patientsData, doctorsData] = await Promise.all([patientsRes.json(), doctorsRes.json()]);
       setPatients(patientsData);
       setDoctors(doctorsData);
+
+      const alertGroups = await Promise.all(
+        doctorsData.map(async (d) => {
+          const ar = await fetch(`${API_BASE}/doctors/${d.id}/alerts`, { headers: authHeaders(false) });
+          if (handleUnauthorized(ar, router)) {
+            return { doctor: d, alerts: [] };
+          }
+          const list = ar.ok ? await ar.json() : [];
+          return { doctor: d, alerts: Array.isArray(list) ? list : [] };
+        })
+      );
+      setDoctorAlertGroups(alertGroups);
     } catch (err) {
       setError("Could not load doctor data. Please try again.");
+    }
+  }
+
+  async function acknowledgeAlert(alertId) {
+    setAckBusyId(alertId);
+    setError("");
+    try {
+      const response = await fetch(`${API_BASE}/alerts/${alertId}/acknowledge`, {
+        method: "PATCH",
+        headers: authHeaders(false),
+      });
+      if (handleUnauthorized(response, router)) {
+        return;
+      }
+      if (!response.ok) {
+        throw new Error("Failed");
+      }
+      await loadData();
+    } catch (err) {
+      setError("Could not update alert. Please try again.");
+    } finally {
+      setAckBusyId(null);
     }
   }
 
@@ -235,6 +282,80 @@ export default function DoctorsPage() {
             </button>
           </div>
         </form>
+      </section>
+
+      <section className="medCard panelPaddingLg" style={{ marginBottom: 16 }}>
+        <h2 className="medPanelTitle" style={{ margin: "0 0 4px" }}>
+          Physician alerts
+        </h2>
+        <p style={{ margin: "0 0 14px", fontSize: 14, color: "var(--text-muted)", maxWidth: 640 }}>
+          Internal escalations from nurses. Acknowledge after review.
+        </p>
+        {doctorAlertGroups.reduce((n, g) => n + g.alerts.length, 0) === 0 ? (
+          <p style={{ margin: 0, fontSize: 13, color: "var(--text-hint)" }}>No alerts yet.</p>
+        ) : (
+          <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+            {doctorAlertGroups.flatMap(({ doctor, alerts }) =>
+              alerts.map((a) => (
+                <li
+                  key={a.id}
+                  style={{
+                    borderRadius: "var(--radius-sm)",
+                    border: "1px solid var(--border)",
+                    background: a.status === "UNREAD" ? "var(--accent-soft)" : "var(--bg-elevated)",
+                    padding: "10px 12px",
+                    borderLeft: a.status === "UNREAD" ? "3px solid var(--accent)" : "3px solid var(--border)",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 8,
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <div>
+                      <span style={{ fontWeight: 600, fontSize: 13, color: "var(--text)" }}>{doctor.name}</span>
+                      {a.status === "UNREAD" && (
+                        <span
+                          style={{
+                            marginLeft: 8,
+                            fontSize: 10,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.04em",
+                            color: "var(--accent)",
+                            fontWeight: 600,
+                          }}
+                        >
+                          Unread
+                        </span>
+                      )}
+                    </div>
+                    <span className={`statusPillBadge ${a.priority === "HIGH" ? "high" : "medium"}`}>{a.priority}</span>
+                  </div>
+                  <p style={{ margin: "8px 0 4px", fontSize: 13, color: "var(--text)", lineHeight: 1.45 }}>{a.message}</p>
+                  <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)" }}>
+                    Patient #{a.patientId} · Nurse {a.nurseId} · {formatAlertTimestamp(a.createdAt)}
+                  </p>
+                  {a.status === "UNREAD" && (
+                    <div style={{ marginTop: 10 }}>
+                      <button
+                        type="button"
+                        className="btnSm"
+                        disabled={ackBusyId === a.id}
+                        onClick={() => void acknowledgeAlert(a.id)}
+                      >
+                        {ackBusyId === a.id ? "…" : "Acknowledge"}
+                      </button>
+                    </div>
+                  )}
+                </li>
+              ))
+            )}
+          </ul>
+        )}
       </section>
 
       <section className="medCard panelPaddingLg">

@@ -2,7 +2,10 @@ package com.example.backend.web;
 
 import com.example.backend.model.Patient;
 import com.example.backend.service.PatientService;
+import com.example.backend.web.dto.PatientCheckRequest;
 import com.example.backend.web.dto.PatientIntakeRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -14,10 +17,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @CrossOrigin(origins = "http://localhost:3000")
 public class PatientController {
+
+    private static final Logger log = LoggerFactory.getLogger(PatientController.class);
 
     private final PatientService patientService;
 
@@ -60,5 +66,25 @@ public class PatientController {
         return patientService.runTriage(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/patients/{id}/check")
+    public ResponseEntity<?> checkInPatient(
+            @PathVariable long id,
+            @RequestBody(required = false) PatientCheckRequest body) {
+        if (body == null || body.nurseId() == null || body.nurseId().isBlank()) {
+            log.warn("POST /patients/{}/check rejected: missing or blank nurseId (bodyNull={})", id, body == null);
+            return ResponseEntity.badRequest().body(Map.of("error", "nurseId is required"));
+        }
+        log.debug("POST /patients/{}/check nurseId={}", id, body.nurseId().trim());
+        return patientService.checkInPatient(id, body)
+                .<ResponseEntity<?>>map(p -> {
+                    log.info("Nurse check-in saved for patient id={}, nextCheckAt={}", p.getId(), p.getNextCheckAt());
+                    return ResponseEntity.ok(p);
+                })
+                .orElseGet(() -> {
+                    log.warn("POST /patients/{}/check: patient not found", id);
+                    return ResponseEntity.notFound().build();
+                });
     }
 }

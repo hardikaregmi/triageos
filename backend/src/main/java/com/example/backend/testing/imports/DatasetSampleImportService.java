@@ -47,8 +47,9 @@ public class DatasetSampleImportService {
         }
 
         int end = Math.min(safeOffset + safeLimit, total);
-        List<Patient> patients = new ArrayList<>(end - safeOffset);
-        List<DatasetTriageSummary> summaries = runTriage ? new ArrayList<>(end - safeOffset) : null;
+        int batchSize = end - safeOffset;
+        List<Patient> patients = new ArrayList<>(batchSize);
+        List<DatasetTriageSummary> summaries = runTriage ? new ArrayList<>(batchSize) : null;
 
         for (int i = safeOffset; i < end; i++) {
             DatasetRow row = all.get(i);
@@ -56,9 +57,14 @@ public class DatasetSampleImportService {
             Patient saved = patientService.createPatientFromPreparedEntity(intake);
             if (runTriage) {
                 saved = patientService.runTriage(saved.getId()).orElse(saved);
+                saved = patientService.applyImportedDemoMonitoringMix(saved, i - safeOffset, batchSize);
                 summaries.add(DatasetTriageSummary.fromPatient(saved));
             }
             patients.add(saved);
+        }
+
+        if (runTriage) {
+            patientService.ensureDemoHasOverdueHighRiskPatient(patients);
         }
 
         return new DatasetImportSampleResponse(patients.size(), patients, summaries);

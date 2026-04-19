@@ -17,6 +17,18 @@
   --blue-soft: #ebf3fb;
   --danger-soft: #fceeee;
   --danger-text: #9f3d3d;
+  --queue-high-bg: #faf3f3;
+  --queue-high-text: #7a4545;
+  --queue-high-border: #e8d6d6;
+  --queue-warn-bg: #fdf9f3;
+  --queue-warn-text: #6a5530;
+  --queue-warn-border: #e8dcc8;
+  --queue-check-warn-bg: #fdf8ef;
+  --queue-check-warn-text: #6b5228;
+  --queue-check-warn-border: #e5d5b8;
+  --queue-check-ok-bg: #f0f7f5;
+  --queue-check-ok-text: #2f5a4c;
+  --queue-check-ok-border: #c5ddd4;
   --warn-bg: #fdf7ea;
   --warn-text: #8a6a2f;
   --success-bg: #ecf7f0;
@@ -24,9 +36,9 @@
   --shadow-md: 0 8px 24px rgba(17, 56, 89, 0.08);
   --radius: 12px;
   --radius-sm: 8px;
-  --sidebar-w: 240px;
-  --space-page: 22px;
-  --space-section: 18px;
+  --sidebar-w: 212px;
+  --space-page: 16px;
+  --space-section: 12px;
   --font: "Inter", "Source Sans 3", system-ui, -apple-system, sans-serif;
 }
 
@@ -83,6 +95,581 @@ a {
   flex-direction: column;
   gap: var(--space-section);
   max-width: 100%;
+}
+
+/* About: sit higher in the viewport, tighter stack */
+.pageContainer.aboutPage {
+  gap: 20px;
+  max-width: 72rem;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.medPageBody:has(.aboutPage) {
+  padding-top: 8px;
+}
+
+/* Dashboard — denser vertical layout + responsive ops density */
+.pageContainer.dashPage {
+  gap: 8px;
+}
+
+.pageContainer.dashPage .medStatGrid {
+  gap: 6px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 1100px) {
+  .pageContainer.dashPage .medStatGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .pageContainer.dashPage .medStatGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pageContainer.dashPage .medStatCard {
+  padding: 8px 10px;
+}
+
+.pageContainer.dashPage .medStatValue {
+  font-size: 17px;
+  line-height: 1.1;
+}
+
+.pageContainer.dashPage .medStatLabel {
+  font-size: 11px;
+}
+
+.pageContainer.dashPage .medStatHint {
+  margin-top: 1px;
+  font-size: 10px;
+}
+
+.pageContainer.dashPage .panelPaddingLg.dashToolbar {
+  padding: 8px 10px;
+}
+
+.pageContainer.dashPage .dashToolbar {
+  margin-bottom: 4px;
+}
+
+.pageContainer.dashPage .medPanelHint {
+  margin-bottom: 0;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.pageContainer.dashPage .medPanelTitle {
+  font-size: 13px;
+}
+
+.pageContainer.dashPage .dashQueueSection {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pageContainer.dashPage .queueTitleBlock {
+  gap: 2px;
+}
+
+.pageContainer.dashPage .queueToolbarRow {
+  gap: 8px;
+  align-items: center;
+}
+
+.pageContainer.dashPage .queueToolbarActions {
+  gap: 6px;
+}
+
+.pageContainer.dashPage .queuePriorityBadge {
+  font-size: 10px;
+  padding: 1px 7px;
+  color: var(--queue-high-text);
+  background: var(--queue-high-bg);
+  border-color: var(--queue-high-border);
+}
+
+.pageContainer.dashPage .medLinkQuiet {
+  padding: 4px 2px;
+  font-size: 12px;
+}
+
+.pageContainer.dashPage .primaryButton {
+  height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.pageContainer.dashPage .errorStripLight {
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+/* Dashboard route: tighter shell header + main (Layout) */
+.medPageHeader--dashboard {
+  padding: 8px 16px 6px;
+  gap: 10px;
+}
+
+.medPageHeader--dashboard .medPageHeaderLogo {
+  width: 28px;
+  height: 28px;
+}
+
+.medPageHeader--dashboard .medPageTitle {
+  font-size: 15px;
+}
+
+.medPageHeader--dashboard .medPageSub {
+  font-size: 11px;
+  margin-top: 2px;
+  line-height: 1.35;
+}
+
+.medPageBody--dashboard {
+  padding: 8px 12px 10px;
+}
+
+@media (max-width: 1100px) {
+  .medPageBody--dashboard {
+    padding: 8px 10px 10px;
+  }
+}
+
+@media (max-width: 640px) {
+  .medPageBody--dashboard {
+    padding: 6px 8px 8px;
+  }
+}
+
+@media (max-width: 900px) {
+  .pageContainer.dashPage {
+    gap: 6px;
+  }
+
+  .medTable--dash .medTableActions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    row-gap: 4px;
+  }
+}
+
+/* Compact patient queue table */
+.medTableWrap--dash {
+  border-radius: var(--radius-sm);
+}
+
+.medTable--dash {
+  table-layout: fixed;
+  font-size: 12px;
+}
+
+.medTable--dash th {
+  padding: 4px 5px;
+  font-size: 10px;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+}
+
+.medTable--dash td {
+  padding: 4px 5px;
+  line-height: 1.2;
+  font-size: 12px;
+  vertical-align: middle;
+}
+
+.medTable--dash .medTableActionsCol {
+  width: 320px;
+  min-width: 320px;
+  text-align: right;
+}
+
+.medTable--dash td.actionCell {
+  vertical-align: middle;
+  padding: 4px 5px;
+  overflow: visible;
+}
+
+.medTable--dash .medTableActions,
+.medTable--dash .actionGroup {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  row-gap: 6px;
+  min-width: 0;
+}
+
+.medTable--dash .btnSm {
+  height: 24px;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.medTable--dash .btnSm.btnSmPrimary {
+  font-weight: 600;
+}
+
+.medTable--dash .btnSm.btnSmDashNotify {
+  border-color: rgba(14, 74, 134, 0.32);
+  background: #fafcfe;
+  color: var(--blue-muted);
+  font-weight: 500;
+}
+
+.medTable--dash .btnSm.btnSmDashNotify:hover:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: rgba(14, 74, 134, 0.45);
+  color: var(--accent);
+}
+
+.medTable--dash .btnSm.btnSmDashSecondary {
+  border-color: #e4eaf1;
+  background: #fcfdfe;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.medTable--dash .btnSm.btnSmDashSecondary:hover:not(:disabled) {
+  background: var(--bg-subtle);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.medTable--dash .btnSm.btnSmDanger {
+  color: #9a5555;
+  border-color: #ead8d8;
+  background: #fffefc;
+  font-weight: 500;
+}
+
+.medTable--dash .btnSm.btnSmDanger:hover:not(:disabled) {
+  background: #fdf6f6;
+  border-color: #e0c8c8;
+}
+
+.medTable--dash .statusPillBadge {
+  font-size: 10px;
+  padding: 3px 8px;
+  line-height: 1.15;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 20px;
+}
+
+.medTable--dash td.dashPillCell {
+  vertical-align: middle;
+}
+
+.medTable--dash .dashPillPlaceholder {
+  font-size: 11px;
+  color: var(--text-hint);
+}
+
+/* Needs follow-up: subtle left accent only — no full-row alarm tint */
+.medTable--dash tbody tr.rowNeedsCheck > td {
+  background: var(--bg-elevated);
+}
+
+.medTable--dash tbody tr.rowNeedsCheck > td:first-child {
+  box-shadow: inset 3px 0 0 0 rgba(196, 165, 110, 0.42);
+}
+
+.medTable--dash tbody tr.rowNeedsCheck:hover > td:first-child {
+  box-shadow: inset 3px 0 0 0 rgba(188, 158, 105, 0.52);
+}
+
+.medTable--dash td.dashTsCol {
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0;
+  vertical-align: middle;
+  white-space: nowrap;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+.medTable--dash .dashTsCompact {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  letter-spacing: 0;
+  line-height: 1.25;
+}
+
+.medTable--dash .dashTsPlain {
+  font-size: 11px;
+  color: var(--text-hint);
+  line-height: 1.25;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+/* Last check / Next check cells: keep date+time on one line, never silently truncate. */
+.timeCell {
+  white-space: nowrap;
+}
+
+.medTable--dash td.timeCell,
+.medTable--dash td.timeCell .dashTsCompact,
+.medTable--dash td.timeCell .dashTsPlain {
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.dashPatientCol {
+  min-width: 0;
+}
+
+.dashPatientColInner {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.medTable--dash .dashPatientCol .patientCellName {
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.medTable--dash .dashPatientCol .patientCellSecondaryName,
+.medTable--dash .dashPatientCol .patientCellImport {
+  display: none;
+}
+
+.medTable--dash .dashPatientCol .patientCellRoom {
+  font-size: 11px;
+  margin-top: 1px;
+}
+
+.dashComplaintPreview {
+  margin-top: 1px;
+  font-size: 10px;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  color: var(--text-hint);
+  opacity: 0.95;
+}
+
+.medTable--dash .dashComplaintPreview.tableMuted {
+  font-size: 10px;
+  margin-top: 1px;
+}
+
+/* Default (>=1281px): roomy layout */
+.medTable--dash th:nth-child(1),
+.medTable--dash td:nth-child(1) {
+  width: auto;
+  min-width: 180px;
+}
+
+.medTable--dash th:nth-child(2),
+.medTable--dash td:nth-child(2) {
+  width: 44px;
+}
+
+.medTable--dash th:nth-child(3),
+.medTable--dash td:nth-child(3) {
+  width: 78px;
+}
+
+.medTable--dash th:nth-child(4),
+.medTable--dash td:nth-child(4) {
+  width: 96px;
+}
+
+.medTable--dash th:nth-child(5),
+.medTable--dash td:nth-child(5) {
+  width: 130px;
+}
+
+.medTable--dash th:nth-child(6),
+.medTable--dash td:nth-child(6) {
+  width: 84px;
+}
+
+.medTable--dash th:nth-child(7),
+.medTable--dash td:nth-child(7),
+.medTable--dash th:nth-child(8),
+.medTable--dash td:nth-child(8) {
+  width: 110px;
+}
+
+/* Narrow desktop / split-screen (≤ 1280px): compact lower-priority columns + actions */
+@media (max-width: 1280px) {
+  .medTableWrap--dash {
+    overflow-x: auto;
+  }
+  .medTable--dash {
+    min-width: 940px;
+  }
+  .medTable--dash .medTableActionsCol {
+    width: 232px;
+    min-width: 232px;
+  }
+  .medTable--dash .btnSm {
+    padding: 0 6px;
+    font-size: 10.5px;
+    height: 22px;
+  }
+  .medTable--dash .medTableActions,
+  .medTable--dash .actionGroup {
+    gap: 6px;
+    row-gap: 5px;
+    flex-wrap: wrap;
+  }
+  .medTable--dash th:nth-child(6),
+  .medTable--dash td:nth-child(6) {
+    width: 72px;
+    font-size: 10.5px;
+  }
+  .medTable--dash th:nth-child(7),
+  .medTable--dash td:nth-child(7),
+  .medTable--dash th:nth-child(8),
+  .medTable--dash td:nth-child(8) {
+    width: 104px;
+  }
+  .medTable--dash td.dashTsCol,
+  .medTable--dash .dashTsCompact,
+  .medTable--dash .dashTsPlain {
+    font-size: 10.5px;
+  }
+  .medTable--dash th:nth-child(5),
+  .medTable--dash td:nth-child(5) {
+    width: 110px;
+    font-size: 11px;
+  }
+  .medTable--dash .dashPatientCol .patientCellRoom {
+    font-size: 10.5px;
+  }
+  .medTable--dash .dashComplaintPreview,
+  .medTable--dash .dashComplaintPreview.tableMuted {
+    font-size: 10px;
+  }
+}
+
+/* Tighter still for very narrow split-screen widths (≤ 1180px) */
+@media (max-width: 1180px) {
+  .medTable--dash {
+    min-width: 920px;
+  }
+  .medTable--dash .medTableActionsCol {
+    width: 212px;
+    min-width: 212px;
+  }
+  .medTable--dash .medTableActions,
+  .medTable--dash .actionGroup {
+    gap: 5px;
+    row-gap: 5px;
+  }
+  .medTable--dash .btnSm {
+    padding: 0 5px;
+  }
+  .medTable--dash th:nth-child(6),
+  .medTable--dash td:nth-child(6) {
+    width: 64px;
+  }
+  .medTable--dash th:nth-child(7),
+  .medTable--dash td:nth-child(7),
+  .medTable--dash th:nth-child(8),
+  .medTable--dash td:nth-child(8) {
+    width: 100px;
+  }
+  .medTable--dash td.timeCell,
+  .medTable--dash td.timeCell .dashTsCompact {
+    font-size: 10px;
+  }
+}
+
+.medTable--dash .medTableDetail td {
+  vertical-align: top;
+}
+
+.dashExpandBody {
+  padding: 12px 14px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.dashExpandBody .dashExpandSectionLabel {
+  margin: 16px 0 8px;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-hint);
+}
+
+.dashExpandAlert {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid #c4b09a;
+}
+
+.dashExpandMeta {
+  margin: 0 0 8px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.dashExpandMeta--primary {
+  color: var(--text);
+}
+
+.dashExpandMeta--muted {
+  color: var(--text-muted);
+}
+
+.dashExpandDl {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 6px 12px;
+  margin: 0;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.dashExpandDl dt {
+  margin: 0;
+  color: var(--text-hint);
+  font-weight: 400;
+}
+
+.dashExpandDl dd {
+  margin: 0;
+}
+
+.medTable--dash .dashTableEmpty {
+  padding: 12px 10px !important;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
 }
 
 .panelPaddingLg {
@@ -248,21 +835,45 @@ a {
 }
 
 .statusPillBadge.high {
-  color: #8f3d3d;
-  background: var(--danger-soft);
-  border-color: #e8cfcf;
+  color: var(--queue-high-text);
+  background: var(--queue-high-bg);
+  border-color: var(--queue-high-border);
 }
 
 .statusPillBadge.low {
-  color: var(--accent);
-  background: var(--success-bg);
-  border-color: #c5ddd0;
+  color: #3d6b8a;
+  background: #f0f6fa;
+  border-color: #cfe0eb;
 }
 
 .statusPillBadge.medium {
-  color: var(--warn-text);
-  background: var(--warn-bg);
-  border-color: #e8dcc8;
+  color: var(--queue-warn-text);
+  background: var(--queue-warn-bg);
+  border-color: var(--queue-warn-border);
+}
+
+.statusPillBadge.checkNeeds {
+  color: var(--queue-check-warn-text);
+  background: var(--queue-check-warn-bg);
+  border-color: var(--queue-check-warn-border);
+}
+
+.statusPillBadge.checkOk {
+  color: var(--queue-check-ok-text);
+  background: var(--queue-check-ok-bg);
+  border-color: var(--queue-check-ok-border);
+}
+
+.medTable tbody tr.rowNeedsCheck > td {
+  background: var(--bg-elevated);
+}
+
+.medTable tbody tr.rowNeedsCheck > td:first-child {
+  box-shadow: inset 3px 0 0 0 rgba(196, 165, 110, 0.5);
+}
+
+.medTable tbody tr.rowNeedsCheck:hover > td {
+  background: #f7f9fb;
 }
 
 /* —— App shell (sidebar layout) —— */
@@ -281,7 +892,7 @@ a {
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  padding: 18px 14px 16px;
+  padding: 14px 10px 12px;
 }
 
 .medSidebarBrand {
@@ -312,16 +923,11 @@ a {
   transform: translateY(-0.5px);
 }
 
-.medLogoMark svg {
-  width: 18px;
-  height: 18px;
-  opacity: 0.98;
-}
-
-.medLogoMark rect {
-  stroke: currentColor;
-  strokeWidth: 1.1;
-  fill: rgba(255, 255, 255, 0.35);
+.medLogoMark img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  display: block;
 }
 
 .medLogoText {
@@ -344,17 +950,17 @@ a {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 12px 2px;
+  padding: 8px 0;
   flex: 1;
 }
 
 .medNavLink {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 9px 11px;
+  gap: 8px;
+  padding: 7px 8px;
   border-radius: var(--radius-sm);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--text-muted);
   border: 1px solid transparent;
@@ -391,8 +997,8 @@ a {
   margin-top: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding-top: 12px;
+  gap: 8px;
+  padding-top: 8px;
 }
 
 .medStaffPanel {
@@ -406,24 +1012,34 @@ a {
   overflow: hidden;
 }
 
-.medStaffPanelBar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+.medStaffPanelHead {
   padding: 8px 10px;
   border-bottom: 1px solid var(--border);
   background: #eef4fb;
 }
 
-.medStaffPanelHeading {
-  margin: 0;
-  font-size: 11px;
+.medStaffWelcomeLabel {
+  margin: 0 0 8px;
+  font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-muted);
   line-height: 1.2;
+}
+
+.medStaffIdRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+}
+
+.medStaffIdText {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
 
 .medStaffPresence {
@@ -461,44 +1077,11 @@ a {
   white-space: nowrap;
 }
 
-.medStaffPanelBody {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px 10px 8px;
-  background: #ffffff;
-}
-
-.medStaffField {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.medStaffFieldLabel {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--text-muted);
-  line-height: 1.3;
-}
-
-.medStaffInput {
-  width: 100%;
-  padding: 6px 8px;
-  font-size: 13px;
-}
-
-.medStaffSelect {
-  width: 100%;
-  padding: 6px 8px;
-  font-size: 12px;
-}
-
 .medStaffActions {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px 10px 10px;
+  gap: 5px;
+  padding: 8px 10px 8px;
   border-top: 1px solid var(--border);
   background: #ffffff;
 }
@@ -542,26 +1125,41 @@ a {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
-  padding: 18px 26px 16px;
+  gap: 12px;
+  padding: 12px 22px 10px;
   border-bottom: 1px solid var(--border);
   background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
 }
 
+.medPageHeaderLead {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.medPageHeaderLogo {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
 .medPageTitle {
   margin: 0;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--text);
   letter-spacing: -0.02em;
 }
 
 .medPageSub {
-  margin: 5px 0 0;
-  font-size: 13px;
+  margin: 3px 0 0;
+  font-size: 12px;
   color: var(--text-muted);
   max-width: 520px;
-  line-height: 1.5;
+  line-height: 1.45;
   font-weight: 400;
 }
 
@@ -576,7 +1174,7 @@ a {
 .medPageBody {
   flex: 1 1 auto;
   min-height: 0;
-  padding: var(--space-page) 24px 36px;
+  padding: var(--space-page) 20px 22px;
   overflow: auto;
 }
 
@@ -680,10 +1278,22 @@ a {
   background: #f1f7fd;
 }
 
+.medTable--dash tbody tr:hover > td {
+  background: #f5f8fb;
+}
+
+.medTable--dash tbody tr.rowNeedsCheck:hover > td {
+  background: #f4f6f9;
+}
+
 .medTableDetail td {
   padding: 0;
-  background: var(--bg-subtle);
+  background: #f9fafb;
   border-bottom: 1px solid var(--border);
+}
+
+.medTable--dash .medTableDetail td {
+  background: linear-gradient(180deg, #fafcfd 0%, #f6f9fc 100%);
 }
 
 .medTableActions {
@@ -802,7 +1412,7 @@ a {
 }
 
 .medStatValue.alert {
-  color: var(--danger-text);
+  color: var(--queue-high-text);
 }
 
 .medStatLabel {
@@ -980,9 +1590,9 @@ a {
   border-radius: 999px;
   font-size: 11px;
   font-weight: 500;
-  color: var(--danger-text);
-  background: var(--danger-soft);
-  border: 1px solid #f0d6d2;
+  color: var(--queue-high-text);
+  background: var(--queue-high-bg);
+  border: 1px solid var(--queue-high-border);
 }
 
 .queueToolbarActions {
@@ -1113,4 +1723,10 @@ a {
 .medAuthBtn:hover {
   transform: translateY(-1px);
   opacity: 0.9;
+}
+
+/* Nurse login: left panel (see nurse-login.js .nl-panel-left) */
+.nl-panel-left {
+  background: linear-gradient(to bottom, #0b1f3a 0%, #071629 100%);
+  box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.25);
 }

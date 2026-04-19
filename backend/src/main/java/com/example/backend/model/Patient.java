@@ -11,6 +11,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.LocalDateTime;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -94,6 +95,28 @@ public class Patient {
     @Embedded
     @JsonUnwrapped
     private TriageResult triageResult;
+
+    @Column(name = "last_checked_at")
+    private LocalDateTime lastCheckedAt;
+
+    @Column(name = "next_check_at")
+    private LocalDateTime nextCheckAt;
+
+    @Column(name = "check_interval_minutes")
+    private Integer checkIntervalMinutes;
+
+    @Column(name = "needs_check")
+    private boolean needsCheck;
+
+    @Column(name = "assigned_nurse_id", length = 128)
+    private String assignedNurseId;
+
+    @Column(name = "doctor_alert_required")
+    private boolean doctorAlertRequired;
+
+    /** Optional notes from the last nurse check-in; persisted as {@code last_check_notes} for schema compatibility. */
+    @Column(name = "last_check_notes", length = 2048)
+    private String checkNotes;
 
     public Patient() {
     }
@@ -301,5 +324,61 @@ public class Patient {
 
     public void setTriageResult(TriageResult triageResult) {
         this.triageResult = triageResult;
+    }
+
+    public LocalDateTime getLastCheckedAt() {
+        return lastCheckedAt;
+    }
+
+    public void setLastCheckedAt(LocalDateTime lastCheckedAt) {
+        this.lastCheckedAt = lastCheckedAt;
+    }
+
+    public LocalDateTime getNextCheckAt() {
+        return nextCheckAt;
+    }
+
+    public void setNextCheckAt(LocalDateTime nextCheckAt) {
+        this.nextCheckAt = nextCheckAt;
+    }
+
+    public Integer getCheckIntervalMinutes() {
+        return checkIntervalMinutes;
+    }
+
+    public void setCheckIntervalMinutes(Integer checkIntervalMinutes) {
+        this.checkIntervalMinutes = checkIntervalMinutes;
+    }
+
+    public boolean isNeedsCheck() {
+        return needsCheck;
+    }
+
+    public void setNeedsCheck(boolean needsCheck) {
+        this.needsCheck = needsCheck;
+    }
+
+    public String getAssignedNurseId() {
+        return assignedNurseId;
+    }
+
+    public void setAssignedNurseId(String assignedNurseId) {
+        this.assignedNurseId = assignedNurseId;
+    }
+
+    public boolean isDoctorAlertRequired() {
+        return doctorAlertRequired;
+    }
+
+    public void setDoctorAlertRequired(boolean doctorAlertRequired) {
+        this.doctorAlertRequired = doctorAlertRequired;
+    }
+
+    public String getCheckNotes() {
+        return checkNotes;
+    }
+
+    public void setCheckNotes(String checkNotes) {
+        this.checkNotes = checkNotes;
     }
 }

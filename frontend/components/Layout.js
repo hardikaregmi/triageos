@@ -2,7 +2,8 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 import { useAppRole } from "../contexts/AppRoleContext";
-import { NURSE_SESSION, NURSE_STATION_OPTIONS, clearNurseSession } from "../constants/nurseSession";
+import { BRAND_LOGO_SRC } from "../constants/branding";
+import { NURSE_SESSION, clearNurseSession } from "../constants/nurseSession";
 
 
 const API_BASE = "http://localhost:8080";
@@ -60,7 +61,7 @@ function subtitleForRoute(pathname) {
   if (pathname === "/") return "Shortcuts to queue, roster, and reference material.";
   if (pathname === "/dashboard") return "Today's patient flow and staffing at a glance.";
   if (pathname === "/doctors") return "Who is available and how patients are distributed.";
-  if (pathname === "/about") return "Background on triage in acute care.";
+  if (pathname === "/about") return "What TriageOS is and why it exists.";
   return "";
 }
 
@@ -68,10 +69,7 @@ export default function Layout({ children }) {
   const router = useRouter();
   const { role: appRole, hospitalId } = useAppRole();
   const [now, setNow] = useState(() => new Date());
-  const [nurseDisplayName, setNurseDisplayName] = useState("");
   const [nurseUsername, setNurseUsername] = useState("");
-  const [station, setStation] = useState(NURSE_STATION_OPTIONS[1]);
-  const [nurseStatus, setNurseStatus] = useState("on-duty");
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 30000);
@@ -80,37 +78,12 @@ export default function Layout({ children }) {
 
   useEffect(() => {
     try {
-      const name = localStorage.getItem(NURSE_SESSION.name);
       const user = localStorage.getItem(NURSE_SESSION.username);
-      const s = localStorage.getItem(NURSE_SESSION.station);
-      const st = localStorage.getItem(NURSE_SESSION.status);
-      if (name) setNurseDisplayName(name);
       if (user) setNurseUsername(user);
-      if (s && NURSE_STATION_OPTIONS.includes(s)) setStation(s);
-      if (st === "on-duty" || st === "break" || st === "offline") setNurseStatus(st);
     } catch {
       /* ignore */
     }
   }, []);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(NURSE_SESSION.station, station);
-    } catch {
-      /* ignore */
-    }
-  }, [station]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(NURSE_SESSION.status, nurseStatus);
-    } catch {
-      /* ignore */
-    }
-  }, [nurseStatus]);
-
-  const statusBadgeLabel =
-    nurseStatus === "on-duty" ? "On Duty" : nurseStatus === "break" ? "Break" : "Offline";
 
   const headerTitle = useMemo(() => {
     const path = router.pathname;
@@ -121,6 +94,7 @@ export default function Layout({ children }) {
   }, [router.pathname, now]);
 
   const headerSub = subtitleForRoute(router.pathname);
+  const isDashboard = router.pathname === "/dashboard";
 
   const timeStr = now.toLocaleString(undefined, {
     weekday: "long",
@@ -139,17 +113,8 @@ export default function Layout({ children }) {
     <div className="medShell" data-app-role={appRole} data-hospital-id={hospitalId}>
       <aside className="medSidebar">
         <div className="medSidebarBrand">
-         
           <span className="medLogoMark" aria-hidden>
-            <svg viewBox="0 0 24 24" fill="none">
-              <rect x="3.5" y="3.5" width="17" height="17" rx="4.5" />
-              <path
-                d="M12 8v8M8 12h8"
-                stroke="currentColor"
-                strokeWidth="1.85"
-                strokeLinecap="round"
-              />
-            </svg>
+            <img src={BRAND_LOGO_SRC} alt="" width={24} height={24} />
           </span>
           <div>
             <div className="medLogoText">TriageOS</div>
@@ -171,59 +136,15 @@ export default function Layout({ children }) {
         </nav>
 
         <div className="medSidebarFooter">
-          <section className="medStaffPanel" aria-label="Nurse station">
-            <header className="medStaffPanelBar">
-              <h2 className="medStaffPanelHeading">
-                {nurseDisplayName || "Nurse"}
-                {nurseUsername ? (
-                  <span style={{ display: "block", fontSize: 11, fontWeight: 400, color: "var(--text-hint)", marginTop: 4 }}>
-                    @{nurseUsername}
-                  </span>
-                ) : null}
-              </h2>
-              <div className="medStaffPresence" aria-live="polite">
-                <span
-                  className={`medStaffPresenceLed medStaffPresenceLed--${nurseStatus}`}
-                  title={`Presence: ${statusBadgeLabel}`}
-                  aria-hidden
-                />
-                <span className="medStaffPresenceText">{statusBadgeLabel}</span>
-              </div>
-            </header>
-
-            <div className="medStaffPanelBody" role="group" aria-label="Workstation and presence">
-              <div className="medStaffField">
-                <label className="medStaffFieldLabel" htmlFor="staff-station">
-                  Workstation
-                </label>
-                <select
-                  id="staff-station"
-                  className="uiSelect medStaffSelect"
-                  value={station}
-                  onChange={(e) => setStation(e.target.value)}
-                >
-                  {NURSE_STATION_OPTIONS.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="medStaffField">
-                <label className="medStaffFieldLabel" htmlFor="staff-status">
-                  Duty status
-                </label>
-                <select
-                  id="staff-status"
-                  className="uiSelect medStaffSelect"
-                  value={nurseStatus}
-                  onChange={(e) => setNurseStatus(e.target.value)}
-                >
-                  <option value="on-duty">On Duty</option>
-                  <option value="break">Break</option>
-                  <option value="offline">Offline</option>
-                </select>
+          <section className="medStaffPanel" aria-label="Account">
+            <div className="medStaffPanelHead">
+              <p className="medStaffWelcomeLabel">Welcome</p>
+              <div className="medStaffIdRow" aria-live="polite">
+                <span className="medStaffIdText">@{nurseUsername || "—"}</span>
+                <span className="medStaffPresence">
+                  <span className="medStaffPresenceLed medStaffPresenceLed--on-duty" title="On duty" aria-hidden />
+                  <span className="medStaffPresenceText">On Duty</span>
+                </span>
               </div>
             </div>
 
@@ -240,17 +161,26 @@ export default function Layout({ children }) {
       </aside>
 
       <div className="medWorkspace">
-        <header className="medPageHeader">
-          <div>
-            <h1 className="medPageTitle">{headerTitle}</h1>
-            <p className="medPageSub">{headerSub}</p>
+        <header className={`medPageHeader${isDashboard ? " medPageHeader--dashboard" : ""}`}>
+          <div className="medPageHeaderLead">
+            <img
+              className="medPageHeaderLogo"
+              src={BRAND_LOGO_SRC}
+              alt=""
+              width={32}
+              height={32}
+            />
+            <div>
+              <h1 className="medPageTitle">{headerTitle}</h1>
+              <p className="medPageSub">{headerSub}</p>
+            </div>
           </div>
           <div className="medPageHeaderMeta">
             <time dateTime={now.toISOString()}>{timeStr}</time>
           </div>
         </header>
 
-        <main className="medPageBody">{children}</main>
+        <main className={`medPageBody${isDashboard ? " medPageBody--dashboard" : ""}`}>{children}</main>
 
         <footer className="medAppFooter">
           <p className="medAppFooterName">TriageOS</p>

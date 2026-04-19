@@ -10,12 +10,6 @@ export const NURSE_SESSION = {
   status: "triageos_staff_status",
 };
 
-export const NURSE_STATION_OPTIONS = [
-  "OPD · Floor 2",
-  "OPD · Floor 3",
-  "ED · Floor 1",
-];
-
 function parseJwtPayload(token) {
   try {
     const parts = String(token).split(".");

@@ -1,37 +1,17 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/router";
 import { API_BASE } from "../lib/api";
-import {
-  NURSE_SESSION,
-  NURSE_STATION_OPTIONS,
-  isNurseLoggedIn,
-} from "../constants/nurseSession";
+import { NURSE_SESSION } from "../constants/nurseSession";
+import { BRAND_LOGO_SRC } from "../constants/branding";
 
 export default function NurseLoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [station, setStation] = useState(NURSE_STATION_OPTIONS[1]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [welcomeName, setWelcomeName] = useState("");
-
-  useEffect(() => {
-    if (!router.isReady) return;
-    if (isNurseLoggedIn()) {
-      router.replace("/dashboard");
-      return;
-    }
-    try {
-      const storedStation = localStorage.getItem(NURSE_SESSION.station);
-      if (storedStation && NURSE_STATION_OPTIONS.includes(storedStation)) {
-        setStation(storedStation);
-      }
-    } catch {
-      /* ignore */
-    }
-  }, [router]);
 
   async function submit(e) {
     e.preventDefault();
@@ -64,7 +44,7 @@ export default function NurseLoginPage() {
       localStorage.setItem(NURSE_SESSION.username, nurse.username || u);
       localStorage.removeItem(NURSE_SESSION.loggedIn);
       localStorage.removeItem(NURSE_SESSION.staffId);
-      localStorage.setItem(NURSE_SESSION.station, station);
+      localStorage.removeItem(NURSE_SESSION.station);
       localStorage.setItem(NURSE_SESSION.status, "on-duty");
       setWelcomeName(nurse.displayName || nurse.username || u);
       setSuccess(true);
@@ -83,229 +63,273 @@ export default function NurseLoginPage() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
-
         .nl-page {
           min-height: 100vh;
+          min-height: 100dvh;
+          box-sizing: border-box;
           display: flex;
           align-items: center;
           justify-content: center;
-          background: #f0ede8;
-          padding: 2rem 1rem;
-          font-family: 'IBM Plex Sans', system-ui, sans-serif;
+          background: var(--bg-page);
+          /* Tight gutters; extra bottom padding nudges the card slightly above true center */
+          padding: 4px 8px min(9vh, 56px);
+          font-family: var(--font);
         }
         .nl-shell {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          width: 100%;
-          max-width: 860px;
-          min-height: 560px;
-          border-radius: 16px;
+          width: min(940px, calc(100vw - 16px));
+          min-height: min(580px, calc(100dvh - 20px));
+          border-radius: var(--radius);
           overflow: hidden;
-          box-shadow: 0 8px 40px rgba(0,0,0,0.14);
+          border: 1px solid var(--border);
+          box-shadow: var(--shadow-md);
+          background: var(--bg-elevated);
         }
         @media (max-width: 640px) {
-          .nl-shell { grid-template-columns: 1fr; }
+          .nl-shell {
+            grid-template-columns: 1fr;
+            width: min(100%, calc(100vw - 16px));
+            min-height: min(calc(100dvh - 16px), 640px);
+          }
           .nl-panel-left { display: none; }
         }
 
-        /* Left panel */
         .nl-panel-left {
-          background: #0a1628;
-          padding: 2.5rem;
+          padding: 1.25rem 1.45rem 1.25rem;
           display: flex;
           flex-direction: column;
-          justify-content: space-between;
-          gap: 2rem;
+          justify-content: center;
+          align-items: flex-start;
+          min-height: 0;
         }
-        .nl-brand { display: flex; align-items: center; gap: 11px; }
-        .nl-brand-icon {
-          width: 38px; height: 38px;
-          border: 1.5px solid rgba(255,255,255,0.2);
-          border-radius: 9px;
-          display: flex; align-items: center; justify-content: center;
-          flex-shrink: 0;
+        .nl-leftColumn {
+          max-width: 420px;
+          width: 100%;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+        }
+        .nl-leftZoneTop {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+        }
+        .nl-loginLogo {
+          display: block;
+          height: 42px;
+          width: auto;
+          max-width: 148px;
+          margin-bottom: 8px;
+          object-fit: contain;
+          object-position: left center;
+        }
+        .nl-brandText {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
         }
         .nl-brand-name {
-          font-size: 15px; font-weight: 600;
-          color: #fff; letter-spacing: -0.01em;
+          font-size: 15px;
+          font-weight: 500;
+          color: #fff;
+          letter-spacing: -0.02em;
+          line-height: 1.45;
         }
         .nl-brand-tag {
-          font-size: 11px; color: rgba(255,255,255,0.38);
-          letter-spacing: 0.03em; margin-top: 1px;
+          font-size: 10px;
+          color: rgba(255,255,255,0.4);
+          letter-spacing: 0.04em;
+          line-height: 1.45;
         }
-        .nl-panel-body { flex: 1; }
-        .nl-shift-badge {
-          display: inline-flex; align-items: center; gap: 6px;
-          background: rgba(255,255,255,0.07);
-          border: 0.5px solid rgba(255,255,255,0.12);
-          border-radius: 20px; padding: 5px 12px;
-          font-size: 11px; color: rgba(255,255,255,0.55);
-          font-family: 'IBM Plex Mono', monospace;
-          letter-spacing: 0.04em; margin-bottom: 1.25rem;
+        .nl-leftZoneMiddle {
+          margin-top: 36px;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          width: 100%;
         }
-        .nl-shift-dot {
-          width: 6px; height: 6px; border-radius: 50%;
-          background: #4ade80;
-          animation: nl-pulse 2s infinite;
-        }
-        @keyframes nl-pulse { 0%,100% { opacity:1; } 50% { opacity:0.35; } }
         .nl-headline {
-          font-size: 24px; font-weight: 500; color: #fff;
-          line-height: 1.3; letter-spacing: -0.02em; margin: 0 0 0.75rem;
+          font-size: 1.28rem;
+          font-weight: 500;
+          color: #fff;
+          line-height: 1.5;
+          letter-spacing: -0.02em;
+          margin: 0;
+        }
+        .nl-headlineLead {
+          font-weight: 500;
         }
         .nl-sub {
-          font-size: 13px; color: rgba(255,255,255,0.42);
-          line-height: 1.65; margin: 0;
-        }
-        .nl-stats { display: flex; gap: 10px; }
-        .nl-stat {
-          flex: 1;
-          background: rgba(255,255,255,0.05);
-          border: 0.5px solid rgba(255,255,255,0.1);
-          border-radius: 10px; padding: 12px 14px;
-        }
-        .nl-stat-num {
-          font-size: 22px; font-weight: 500; color: #fff;
-          font-family: 'IBM Plex Mono', monospace; letter-spacing: -0.02em;
-        }
-        .nl-stat-label {
-          font-size: 11px; color: rgba(255,255,255,0.38);
-          margin-top: 2px; text-transform: uppercase; letter-spacing: 0.06em;
+          font-size: 12px;
+          color: rgba(255,255,255,0.45);
+          line-height: 1.55;
+          margin: 12px 0 0;
+          max-width: 420px;
         }
 
-        /* Right panel */
         .nl-panel-right {
-          background: #fff;
-          padding: 2.75rem 2.5rem;
-          display: flex; flex-direction: column; justify-content: center;
+          background: var(--bg-elevated);
+          padding: 1.3rem 1.45rem 1rem;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          min-height: 0;
         }
         .nl-form-title {
-          font-size: 20px; font-weight: 500; color: #111;
-          letter-spacing: -0.02em; margin: 0 0 4px;
+          font-size: 1.05rem; font-weight: 600; color: var(--text);
+          letter-spacing: -0.02em; margin: 0 0 3px;
         }
-        .nl-form-sub { font-size: 13px; color: #6b7280; margin: 0 0 1.75rem; }
+        .nl-form-sub {
+          font-size: 12px; color: var(--text-muted);
+          margin: 0 0 0.85rem;
+          line-height: 1.45;
+        }
         .nl-error {
-          font-size: 13px; color: #b91c1c;
-          background: #fef2f2; border: 0.5px solid #fca5a5;
-          border-radius: 8px; padding: 9px 12px; margin-bottom: 1rem;
+          font-size: 12px; color: var(--danger-text);
+          background: var(--danger-soft);
+          border: 1px solid #f0d6d6;
+          border-radius: var(--radius-sm);
+          padding: 8px 10px;
+          margin-bottom: 0.75rem;
         }
         .nl-fields {
-          display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.55rem;
+          margin-bottom: 0.75rem;
         }
-        .nl-field { display: flex; flex-direction: column; gap: 5px; }
+        .nl-field { display: flex; flex-direction: column; gap: 4px; }
         .nl-label {
-          font-size: 11px; font-weight: 500; color: #6b7280;
-          text-transform: uppercase; letter-spacing: 0.06em;
+          font-size: 10px; font-weight: 600; color: var(--text-hint);
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
         }
         .nl-input-wrap { position: relative; }
         .nl-input-icon {
-          position: absolute; left: 11px; top: 50%;
+          position: absolute; left: 10px; top: 50%;
           transform: translateY(-50%);
-          color: #9ca3af; pointer-events: none;
+          color: var(--text-hint);
+          pointer-events: none;
           display: flex; align-items: center;
         }
         .nl-input {
-          width: 100%; height: 40px;
-          border: 0.5px solid #d1d5db; border-radius: 8px;
-          background: #f9fafb; color: #111;
-          font-family: 'IBM Plex Sans', system-ui, sans-serif;
-          font-size: 13px; padding: 0 12px 0 36px;
-          outline: none; box-sizing: border-box;
+          width: 100%; height: 36px;
+          border: 1px solid var(--border);
+          border-radius: var(--radius-sm);
+          background: var(--bg-subtle);
+          color: var(--text);
+          font-family: var(--font);
+          font-size: 13px;
+          padding: 0 11px 0 34px;
+          outline: none;
+          box-sizing: border-box;
           transition: border-color 0.15s, box-shadow 0.15s;
         }
         .nl-input:focus {
-          border-color: #6b7280;
-          box-shadow: 0 0 0 3px rgba(0,0,0,0.06);
+          border-color: var(--border-strong);
+          box-shadow: 0 0 0 3px var(--accent-soft);
         }
         .nl-input.mono {
-          font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.04em;
-        }
-        .nl-select {
-          width: 100%; height: 40px;
-          border: 0.5px solid #d1d5db; border-radius: 8px;
-          background: #f9fafb; color: #111;
-          font-family: 'IBM Plex Sans', system-ui, sans-serif;
-          font-size: 13px; padding: 0 36px 0 12px;
-          outline: none; box-sizing: border-box; appearance: none;
-          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-          background-repeat: no-repeat; background-position: right 12px center;
+          font-variant-numeric: tabular-nums;
+          letter-spacing: 0.02em;
         }
         .nl-btn {
-          width: 100%; height: 42px;
-          background: #0a1628; border: none; border-radius: 8px;
-          color: #fff; font-family: 'IBM Plex Sans', system-ui, sans-serif;
-          font-size: 14px; font-weight: 500; cursor: pointer;
-          letter-spacing: 0.01em; transition: opacity 0.15s;
-          margin-bottom: 0.75rem;
-          display: flex; align-items: center; justify-content: center; gap: 8px;
+          width: 100%; height: 36px;
+          background: var(--accent);
+          border: 1px solid var(--accent);
+          border-radius: var(--radius-sm);
+          color: #fff;
+          font-family: var(--font);
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          letter-spacing: 0.01em;
+          transition: background 0.15s, border-color 0.15s;
+          margin-bottom: 0.35rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
         }
-        .nl-btn:hover:not(:disabled) { opacity: 0.88; }
-        .nl-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .nl-footer { font-size: 11px; color: #9ca3af; text-align: center; }
+        .nl-btn:hover:not(:disabled) {
+          background: var(--accent-hover);
+          border-color: var(--accent-hover);
+        }
+        .nl-btn:disabled { opacity: 0.65; cursor: not-allowed; }
+        .nl-footer {
+          font-size: 10px;
+          color: var(--text-hint);
+          text-align: center;
+          line-height: 1.38;
+          margin: 0;
+          padding-top: 1px;
+          opacity: 0.78;
+        }
         .nl-spinner {
           width: 13px; height: 13px;
-          border: 1.5px solid rgba(255,255,255,0.3);
-          border-top-color: #fff; border-radius: 50%;
-          animation: nl-spin 0.7s linear infinite; flex-shrink: 0;
+          border: 1.5px solid rgba(255,255,255,0.35);
+          border-top-color: #fff;
+          border-radius: 50%;
+          animation: nl-spin 0.7s linear infinite;
+          flex-shrink: 0;
         }
         @keyframes nl-spin { to { transform: rotate(360deg); } }
 
-        /* Success state */
         .nl-success {
-          display: flex; flex-direction: column;
-          align-items: center; justify-content: center;
-          text-align: center; gap: 12px; flex: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          gap: 8px;
+          flex: 1;
+          padding: 0.25rem 0;
         }
         .nl-success-icon {
-          width: 52px; height: 52px; border-radius: 50%;
-          background: #0a1628;
-          display: flex; align-items: center; justify-content: center;
-          margin-bottom: 4px;
+          width: 44px; height: 44px;
+          border-radius: 50%;
+          background: var(--accent);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: 2px;
         }
         .nl-success-title {
-          font-size: 17px; font-weight: 500;
-          color: #111; letter-spacing: -0.01em;
+          font-size: 15px;
+          font-weight: 600;
+          color: var(--text);
+          letter-spacing: -0.01em;
         }
-        .nl-success-sub { font-size: 13px; color: #6b7280; }
+        .nl-success-sub { font-size: 12px; color: var(--text-muted); }
       `}</style>
 
       <div className="nl-page">
         <div className="nl-shell">
           <div className="nl-panel-left">
-            <div className="nl-brand">
-              <div className="nl-brand-icon" aria-hidden>
-                <svg viewBox="0 0 24 24" fill="none" width={20} height={20}>
-                  <rect x="3.5" y="3.5" width="17" height="17" rx="4.5" stroke="rgba(255,255,255,0.35)" strokeWidth="1.25" />
-                  <path d="M12 8v8M8 12h8" stroke="rgba(255,255,255,0.9)" strokeWidth="1.75" strokeLinecap="round" />
-                </svg>
+            <div className="nl-leftColumn">
+              <div className="nl-leftZoneTop">
+                <img
+                  className="nl-loginLogo"
+                  src={BRAND_LOGO_SRC}
+                  alt="TriageOS"
+                  width={148}
+                  height={42}
+                />
+                <div className="nl-brandText">
+                  <div className="nl-brand-name">TriageOS</div>
+                  <div className="nl-brand-tag">Clinical operations</div>
+                </div>
               </div>
-              <div>
-                <div className="nl-brand-name">TriageOS</div>
-                <div className="nl-brand-tag">Clinical operations</div>
-              </div>
-            </div>
 
-            <div className="nl-panel-body">
-              <div className="nl-shift-badge">
-                <span className="nl-shift-dot" />
-                SHIFT ACTIVE — 07:00–19:00
-              </div>
-              <h1 className="nl-headline">{greeting}.<br />Clock in to your station.</h1>
-              <p className="nl-sub">
-                Sign in to access the patient queue, triage tools, and shift
-                data for your workstation.
-              </p>
-            </div>
-
-            <div className="nl-stats">
-              <div className="nl-stat">
-                <div className="nl-stat-num">24</div>
-                <div className="nl-stat-label">Active patients</div>
-              </div>
-              <div className="nl-stat">
-                <div className="nl-stat-num">6</div>
-                <div className="nl-stat-label">On duty now</div>
+              <div className="nl-leftZoneMiddle">
+                <h1 className="nl-headline">
+                  {greeting}.<br />
+                  <span className="nl-headlineLead">Sign in to access the patient dashboard.</span>
+                </h1>
+                <p className="nl-sub">
+                  View the triage queue, patient intake, and monitoring tools after you sign in.
+                </p>
               </div>
             </div>
           </div>
@@ -321,9 +345,7 @@ export default function NurseLoginPage() {
                 <div className="nl-success-title">
                   Welcome back, {welcomeName}
                 </div>
-                <div className="nl-success-sub">
-                  Clocked in to {station} · Redirecting to dashboard…
-                </div>
+                <div className="nl-success-sub">Redirecting to dashboard…</div>
               </div>
             ) : (
               <>
@@ -381,21 +403,6 @@ export default function NurseLoginPage() {
                           disabled={saving}
                         />
                       </div>
-                    </div>
-
-                    <div className="nl-field">
-                      <label className="nl-label" htmlFor="nl-station">Workstation / floor</label>
-                      <select
-                        id="nl-station"
-                        className="nl-select"
-                        value={station}
-                        onChange={(e) => setStation(e.target.value)}
-                        disabled={saving}
-                      >
-                        {NURSE_STATION_OPTIONS.map((opt) => (
-                          <option key={opt} value={opt}>{opt}</option>
-                        ))}
-                      </select>
                     </div>
 
                   </div>

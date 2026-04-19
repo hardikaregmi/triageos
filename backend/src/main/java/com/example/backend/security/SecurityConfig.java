@@ -45,6 +45,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/nurse/login").permitAll()
                         .requestMatchers("/api/admin/nurses").permitAll()
                         .requestMatchers("/testing/**").permitAll()
+                        .requestMatchers("/demo/**").permitAll()
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()
                 )

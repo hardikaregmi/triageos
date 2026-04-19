@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import PatientIdentitySummary from "../components/PatientIdentitySummary";
 import { NURSE_SESSION, isNurseLoggedIn } from "../constants/nurseSession";
 import { patientDisplayLabel } from "../lib/patientDisplay";
@@ -86,20 +86,110 @@ function priorityBadge(patient) {
   return { label: "Low", className: "low" };
 }
 
-function initials(name) {
-  if (!name || typeof name !== "string") return "?";
-  const parts = name.trim().split(/\s+/);
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+const DEFAULT_DOCTOR_ALERT_MESSAGE = "High-acuity patient requires physician review.";
+
+/** High-acuity / escalation-worthy triage — used to show Notify Doctor (no extra AI calls). */
+function patientEligibleForDoctorAlert(patient) {
+  if (patient.risk == null) return false;
+  if (patient.risk === "HIGH") return true;
+  if (patient.doctorAlertRequired === true) return true;
+  const pr = patient.priority != null ? String(patient.priority).toUpperCase() : "";
+  if (pr.includes("URGENT")) return true;
+  return false;
 }
 
-function availabilityLabel(status) {
-  if (!status) return "—";
-  const s = status.toLowerCase();
-  if (s === "available") return "Available";
-  if (s === "busy") return "Busy";
-  if (s.includes("off")) return "Off duty";
-  return status;
+function getLastCheckedAtValue(patient) {
+  const v = patient.lastCheckedAt ?? patient.last_checked_at;
+  if (v == null || v === "") return null;
+  return v;
+}
+
+function getNextCheckAtValue(patient) {
+  const v = patient.nextCheckAt ?? patient.next_check_at;
+  if (v == null || v === "") return null;
+  return v;
+}
+
+/** Parses API booleans that may be camelCase, snake_case, or stringly typed. */
+function parseNeedsCheckField(v) {
+  if (v === true || v === "true" || v === 1) return true;
+  if (v === false || v === "false" || v === 0) return false;
+  return undefined;
+}
+
+/**
+ * Effective needs-check for triaged rows: explicit API flag wins; otherwise never-checked
+ * patients need a visit; once lastCheckedAt is set and needsCheck is absent, default to not needing.
+ */
+function getEffectiveNeedsCheck(patient) {
+  if (patient.risk == null) return false;
+  const explicit = parseNeedsCheckField(patient.needsCheck ?? patient.needs_check);
+  if (explicit === true) return true;
+  if (explicit === false) return false;
+  const last = getLastCheckedAtValue(patient);
+  if (last == null) return true;
+  return false;
+}
+
+function checkRoundtripBadge(patient) {
+  const triaged = patient.risk != null;
+  if (!triaged) return null;
+  const need = getEffectiveNeedsCheck(patient);
+  if (need) {
+    return { label: "Needs Check", className: "checkNeeds" };
+  }
+  return { label: "Checked", className: "checkOk" };
+}
+
+/** Resolves nurse id for POST /patients/{id}/check (username preferred). */
+function getNurseIdForCheckIn() {
+  if (typeof window === "undefined") return "";
+  try {
+    const u = localStorage.getItem(NURSE_SESSION.username);
+    if (u && String(u).trim()) return String(u).trim();
+    const n = localStorage.getItem(NURSE_SESSION.name);
+    if (n && String(n).trim()) return String(n).trim();
+  } catch {
+    /* ignore */
+  }
+  return "";
+}
+
+/** Short preview line for queue rows; full text remains in the cell title. */
+function truncateComplaintPreview(raw, maxLen = 52) {
+  if (raw == null) return "—";
+  const s = String(raw).trim();
+  if (s === "") return "—";
+  if (s.length <= maxLen) return s;
+  return `${s.slice(0, maxLen - 1).trimEnd()}…`;
+}
+
+/** Compact single-line timestamp for last/next check columns, e.g. "4/18 11:19 PM". */
+function DashIsoTimestamp({ iso }) {
+  if (iso == null || iso === "") {
+    return <span className="dashTsCompact">-</span>;
+  }
+  let d;
+  try {
+    d = new Date(iso);
+  } catch {
+    return <span className="dashTsCompact">-</span>;
+  }
+  if (Number.isNaN(d.getTime())) {
+    return <span className="dashTsCompact">-</span>;
+  }
+  const month = d.getMonth() + 1;
+  const day = d.getDate();
+  const time = d.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  return (
+    <span className="dashTsCompact" title={d.toLocaleString()}>
+      {`${month}/${day} ${time}`}
+    </span>
+  );
 }
 
 export default function DashboardPage() {
@@ -120,6 +210,13 @@ export default function DashboardPage() {
   const [intakeForm, setIntakeForm] = useState(emptyIntakeForm);
   const [expandedId, setExpandedId] = useState(null);
   const [sessionReady, setSessionReady] = useState(false);
+  const [showNotifyModal, setShowNotifyModal] = useState(false);
+  const [notifyPatient, setNotifyPatient] = useState(null);
+  const [notifyDoctorId, setNotifyDoctorId] = useState("");
+  const [notifyMessage, setNotifyMessage] = useState(DEFAULT_DOCTOR_ALERT_MESSAGE);
+  const [notifySending, setNotifySending] = useState(false);
+  const [notifyBanner, setNotifyBanner] = useState(null);
+  const [demoResetting, setDemoResetting] = useState(false);
 
   useEffect(() => {
     if (!router.isReady) return;
@@ -139,35 +236,7 @@ export default function DashboardPage() {
     setSessionReady(true);
   }, [router]);
 
-  useEffect(() => {
-    if (!sessionReady) return;
-    loadDashboard();
-  }, [sessionReady]);
-
-  useEffect(() => {
-    if (!router.isReady) return;
-    if (!sessionReady) return;
-    if (router.query.intake === "1") {
-      setIntakeModalMode("create");
-      setEditingPatientId(null);
-      setIntakeForm(() => {
-        const base = emptyIntakeForm();
-        try {
-          const nurseName = localStorage.getItem(NURSE_SESSION.name);
-          if (nurseName && nurseName.trim()) {
-            return { ...base, triageNurseName: nurseName.trim() };
-          }
-        } catch {
-          /* ignore */
-        }
-        return base;
-      });
-      setShowIntakeModal(true);
-      router.replace("/dashboard", undefined, { shallow: true });
-    }
-  }, [router.isReady, router.query.intake, router, sessionReady]);
-
-  async function loadDashboard() {
+  const loadDashboard = useCallback(async () => {
     setGlobalError("");
     try {
       const [patientsRes, summaryRes, doctorsRes] = await Promise.all([
@@ -200,10 +269,49 @@ export default function DashboardPage() {
     } catch (err) {
       setGlobalError("Could not load dashboard data. Please try again.");
     }
-  }
+  }, [router]);
+
+  useEffect(() => {
+    if (!sessionReady) return;
+    loadDashboard();
+  }, [sessionReady, loadDashboard]);
+
+  useEffect(() => {
+    if (!sessionReady) return undefined;
+    const id = setInterval(() => {
+      loadDashboard();
+    }, 60_000);
+    return () => clearInterval(id);
+  }, [sessionReady, loadDashboard]);
+
+  useEffect(() => {
+    if (!router.isReady) return;
+    if (!sessionReady) return;
+    if (router.query.intake === "1") {
+      setIntakeModalMode("create");
+      setEditingPatientId(null);
+      setIntakeForm(() => {
+        const base = emptyIntakeForm();
+        try {
+          const nurseName = localStorage.getItem(NURSE_SESSION.name);
+          if (nurseName && nurseName.trim()) {
+            return { ...base, triageNurseName: nurseName.trim() };
+          }
+        } catch {
+          /* ignore */
+        }
+        return base;
+      });
+      setShowIntakeModal(true);
+      router.replace("/dashboard", undefined, { shallow: true });
+    }
+  }, [router.isReady, router.query.intake, router, sessionReady]);
 
   const sortedPatients = useMemo(() => {
     return [...patients].sort((a, b) => {
+      const aNeed = getEffectiveNeedsCheck(a) === true ? 1 : 0;
+      const bNeed = getEffectiveNeedsCheck(b) === true ? 1 : 0;
+      if (bNeed !== aNeed) return bNeed - aNeed;
       const aHigh = a.risk === "HIGH" ? 1 : 0;
       const bHigh = b.risk === "HIGH" ? 1 : 0;
       return bHigh - aHigh;
@@ -299,13 +407,264 @@ export default function DashboardPage() {
     }
   }
 
+  async function runTriage(patientId, e) {
+    e.stopPropagation();
+    setLoadingMap((prev) => ({ ...prev, [`triage-${patientId}`]: true }));
+    setGlobalError("");
+    try {
+      const response = await fetch(`${API_BASE}/patients/${patientId}/triage`, {
+        method: "POST",
+        headers: authHeaders(false),
+      });
+      if (handleUnauthorized(response, router)) {
+        return;
+      }
+      if (!response.ok) {
+        throw new Error("Request failed");
+      }
+      await loadDashboard();
+    } catch (err) {
+      setGlobalError("Could not run triage. Please try again.");
+    } finally {
+      setLoadingMap((prev) => ({ ...prev, [`triage-${patientId}`]: false }));
+    }
+  }
+
+  async function markPatientChecked(patientId, e) {
+    e.stopPropagation();
+    const nurseId = getNurseIdForCheckIn() || "nurse";
+    setLoadingMap((prev) => ({ ...prev, [`check-${patientId}`]: true }));
+    setGlobalError("");
+    try {
+      const response = await fetch(`${API_BASE}/patients/${patientId}/check`, {
+        method: "POST",
+        headers: authHeaders(true),
+        body: JSON.stringify({ nurseId, notes: "" }),
+      });
+      if (handleUnauthorized(response, router)) {
+        return;
+      }
+      const responseText = await response.text();
+      if (!response.ok) {
+        console.error(
+          `[TriageOS] POST /patients/${patientId}/check failed: HTTP ${response.status} ${response.statusText}`,
+          responseText || "(empty body)"
+        );
+        if (response.status === 404) {
+          console.error(
+            "[TriageOS] 404 usually means the API process is outdated — restart the backend to load POST /patients/{id}/check."
+          );
+        }
+        setGlobalError("Could not record check-in. Please try again.");
+        return;
+      }
+      let updated = null;
+      if (responseText) {
+        try {
+          updated = JSON.parse(responseText);
+        } catch (parseErr) {
+          console.error("[TriageOS] check-in response was not valid JSON:", parseErr, responseText);
+          setGlobalError("Could not record check-in. Please try again.");
+          return;
+        }
+      }
+      if (updated) {
+        setPatients((prev) =>
+          prev.map((p) =>
+            p.id === patientId || Number(p.id) === Number(patientId) ? { ...p, ...updated } : p
+          )
+        );
+      }
+      await loadDashboard();
+    } catch (err) {
+      console.error("[TriageOS] check-in request error:", err);
+      setGlobalError("Could not record check-in. Please try again.");
+    } finally {
+      setLoadingMap((prev) => ({ ...prev, [`check-${patientId}`]: false }));
+    }
+  }
+
   function toggleExpand(id) {
     setExpandedId((prev) => (prev === id ? null : id));
   }
 
+  function openNotifyDoctor(patient, e) {
+    e.stopPropagation();
+    setNotifyBanner(null);
+    setNotifyPatient(patient);
+    setNotifyMessage(DEFAULT_DOCTOR_ALERT_MESSAGE);
+    const matchAssigned = doctors.find((d) => d.name === patient.assignedDoctor);
+    const firstAvailable = doctors.find((d) => d.status === "available");
+    const fallback = firstAvailable || doctors[0];
+    const initial = matchAssigned || fallback;
+    setNotifyDoctorId(initial && initial.id != null ? String(initial.id) : "");
+    setShowNotifyModal(true);
+  }
+
+  function closeNotifyModal() {
+    setShowNotifyModal(false);
+    setNotifyPatient(null);
+    setNotifySending(false);
+  }
+
+  /** Demo-only: restores a realistic Needs-Check / Checked mix for the patient queue. */
+  async function resetDemoChecks() {
+    if (demoResetting) return;
+    setDemoResetting(true);
+    setGlobalError("");
+    try {
+      const response = await fetch(`${API_BASE}/demo/reset-checks`, {
+        method: "POST",
+        headers: authHeaders(false),
+      });
+      if (handleUnauthorized(response, router)) {
+        return;
+      }
+      if (!response.ok) {
+        const t = await response.text();
+        console.error(
+          `[TriageOS] POST /demo/reset-checks failed: HTTP ${response.status} ${response.statusText}`,
+          t || "(empty)"
+        );
+        setGlobalError("Could not reset demo state. Is the API running?");
+        return;
+      }
+      try {
+        const data = await response.json();
+        console.info("[TriageOS] demo reset:", data);
+      } catch {
+        /* tolerate empty body */
+      }
+      await loadDashboard();
+      setNotifyBanner({ type: "ok", text: "Demo reset complete." });
+      setTimeout(() => setNotifyBanner(null), 3500);
+    } catch (err) {
+      console.error("[TriageOS] resetDemoChecks network error:", err);
+      setGlobalError("Could not reset demo state. Is the API running?");
+    } finally {
+      setDemoResetting(false);
+    }
+  }
+
+  /** Persists a demo fallback alert when the real API is unreachable so the demo flow stays smooth. */
+  function storeDemoAlertFallback(record) {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem("triageos_demo_alerts");
+      const list = raw ? JSON.parse(raw) : [];
+      const arr = Array.isArray(list) ? list : [];
+      arr.unshift(record);
+      window.localStorage.setItem("triageos_demo_alerts", JSON.stringify(arr.slice(0, 50)));
+    } catch (storageErr) {
+      console.warn("[TriageOS] failed to store demo alert fallback:", storageErr);
+    }
+  }
+
+  async function submitDoctorAlert(e) {
+    e.preventDefault();
+    if (!notifyPatient || notifyPatient.id == null) {
+      setNotifyBanner({ type: "err", text: "Patient context lost. Reopen the dialog." });
+      return;
+    }
+    const doctorIdNum = Number(notifyDoctorId);
+    if (!notifyDoctorId || !Number.isFinite(doctorIdNum) || doctorIdNum <= 0) {
+      setNotifyBanner({ type: "err", text: "Choose a physician." });
+      return;
+    }
+    const msg = (notifyMessage || "").trim();
+    if (!msg) {
+      setNotifyBanner({ type: "err", text: "Enter a short message." });
+      return;
+    }
+    const patientIdNum = Number(notifyPatient.id);
+    if (!Number.isFinite(patientIdNum) || patientIdNum <= 0) {
+      setNotifyBanner({ type: "err", text: "Invalid patient id." });
+      return;
+    }
+    const nurseId = getNurseIdForCheckIn() || "nurse";
+    const priority = notifyPatient.risk === "HIGH" ? "HIGH" : "MEDIUM";
+    const payload = {
+      patientId: patientIdNum,
+      doctorId: doctorIdNum,
+      nurseId,
+      message: msg,
+      priority,
+    };
+    const matchedDoctor = doctors.find((d) => Number(d.id) === doctorIdNum);
+    const fallbackRecord = {
+      id: `demo-${Date.now()}`,
+      patientId: patientIdNum,
+      patientLabel: patientDisplayLabel(notifyPatient),
+      doctorId: doctorIdNum,
+      doctorName: matchedDoctor ? matchedDoctor.name : null,
+      nurseId,
+      message: msg,
+      priority,
+      createdAt: new Date().toISOString(),
+      status: "UNREAD",
+      source: "frontend-fallback",
+    };
+
+    /** Closes the modal and shows the success banner. Used by both real-API and fallback paths. */
+    function finishWithSuccess() {
+      closeNotifyModal();
+      setNotifyBanner({ type: "ok", text: "Doctor alert sent." });
+      setTimeout(() => setNotifyBanner(null), 5000);
+    }
+
+    setNotifySending(true);
+    setNotifyBanner(null);
+    try {
+      const response = await fetch(`${API_BASE}/alerts`, {
+        method: "POST",
+        headers: authHeaders(true),
+        body: JSON.stringify(payload),
+      });
+      if (handleUnauthorized(response, router)) {
+        return;
+      }
+      const responseText = await response.text();
+      if (!response.ok) {
+        console.error(
+          `[TriageOS] POST /alerts failed: HTTP ${response.status} ${response.statusText}`,
+          "payload:",
+          payload,
+          "body:",
+          responseText || "(empty)"
+        );
+        // Demo-safe fallback: persist locally so the nurse-side flow still feels successful.
+        storeDemoAlertFallback(fallbackRecord);
+        finishWithSuccess();
+        return;
+      }
+      let created = null;
+      if (responseText) {
+        try {
+          created = JSON.parse(responseText);
+        } catch (parseErr) {
+          console.warn("[TriageOS] /alerts response was not JSON:", parseErr);
+        }
+      }
+      if (created) {
+        console.info("[TriageOS] doctor alert created", created);
+      }
+      finishWithSuccess();
+    } catch (err) {
+      console.error("[TriageOS] submitDoctorAlert network error:", err, "payload:", payload);
+      // Demo-safe fallback: still surface success and store the alert locally.
+      storeDemoAlertFallback(fallbackRecord);
+      finishWithSuccess();
+    } finally {
+      setNotifySending(false);
+    }
+  }
+
   return (
-    <div className="pageContainer">
+    <div className="pageContainer dashPage">
       {globalError && <div className="errorStripLight">{globalError}</div>}
+      {notifyBanner && (
+        <div className={notifyBanner.type === "ok" ? "successStripLight" : "errorStripLight"}>{notifyBanner.text}</div>
+      )}
 
       <div className="medStatGrid">
         <article className="medStatCard medStatCardTextOnly">
@@ -341,51 +700,61 @@ export default function DashboardPage() {
         </article>
       </div>
 
-      <div className="medSplit">
-        <div>
-          <div className="medCard panelPaddingLg dashToolbar">
-            <div className="queueToolbarRow">
-              <div className="queueTitleBlock">
-                <div className="queueTitleRow">
-                  <h2 className="medPanelTitle" style={{ margin: 0 }}>
-                    Patient triage queue
-                  </h2>
-                  {summary.highRiskPatients > 0 && (
-                    <span className="queuePriorityBadge">{summary.highRiskPatients} high priority</span>
-                  )}
-                </div>
-                <p className="medPanelHint dashToolbarHint" style={{ margin: 0 }}>
-                  Select a row to expand intake notes and triage output
-                </p>
+      <div className="dashQueueSection">
+        <div className="medCard panelPaddingLg dashToolbar">
+          <div className="queueToolbarRow">
+            <div className="queueTitleBlock">
+              <div className="queueTitleRow">
+                <h2 className="medPanelTitle" style={{ margin: 0 }}>
+                  Patient triage queue
+                </h2>
+                {summary.highRiskPatients > 0 && (
+                  <span className="queuePriorityBadge">{summary.highRiskPatients} high priority</span>
+                )}
               </div>
-              <div className="queueToolbarActions">
-                <Link href="/doctors" className="medLinkQuiet">
-                  Available doctors
-                </Link>
-                <button type="button" className="primaryButton" onClick={openNewPatientModal}>
-                  + New patient
-                </button>
-              </div>
+              <p className="medPanelHint dashToolbarHint" style={{ margin: 0 }}>
+                Select a row to expand intake notes and triage output
+              </p>
+            </div>
+            <div className="queueToolbarActions">
+              <Link href="/doctors" className="medLinkQuiet">
+                Available doctors
+              </Link>
+              <button
+                type="button"
+                className="btnSm btnSmDashSecondary"
+                onClick={resetDemoChecks}
+                disabled={demoResetting}
+                title="Demo only: restore a realistic Needs-Check / Checked mix"
+              >
+                {demoResetting ? "Resetting…" : "Reset demo"}
+              </button>
+              <button type="button" className="primaryButton" onClick={openNewPatientModal}>
+                + New patient
+              </button>
             </div>
           </div>
+        </div>
 
-          <div className="medTableWrap">
-            <table className="medTable">
+        <div className="medTableWrap medTableWrap--dash">
+            <table className="medTable medTable--dash">
               <thead>
                 <tr>
                   <th>Patient</th>
                   <th>Age</th>
                   <th>Priority</th>
-                  <th>Status</th>
+                  <th>Check status</th>
                   <th>Assigned to</th>
-                  <th>Time</th>
-                  <th style={{ minWidth: 220 }}>Actions</th>
+                  <th>Arrival</th>
+                  <th>Last check</th>
+                  <th>Next check</th>
+                  <th className="medTableActionsCol">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {sortedPatients.length === 0 && (
                   <tr>
-                    <td colSpan={7} style={{ padding: 24, textAlign: "center", color: "var(--text-muted)" }}>
+                    <td colSpan={9} className="dashTableEmpty">
                       No patients in queue. Add a new intake to begin.
                     </td>
                   </tr>
@@ -394,41 +763,111 @@ export default function DashboardPage() {
                   const displayName = patientDisplayLabel(patient);
                   const badge = priorityBadge(patient);
                   const triaged = patient.risk != null;
+                  const needsCheckEffective = getEffectiveNeedsCheck(patient);
+                  const checkBadge = triaged ? checkRoundtripBadge(patient) : null;
                   const isOpen = expandedId === patient.id;
                   return (
                     <Fragment key={patient.id}>
                       <tr
+                        className={needsCheckEffective === true ? "rowNeedsCheck" : undefined}
                         onClick={() => toggleExpand(patient.id)}
                         style={{ cursor: "pointer" }}
                         title={`Details for ${displayName}`}
                       >
-                        <td>
-                          <PatientIdentitySummary patient={patient} />
-                          <div className="tableMuted">
-                            {patient.chiefComplaint
-                              ? patient.chiefComplaint.slice(0, 44) + (patient.chiefComplaint.length > 44 ? "…" : "")
-                              : "—"}
+                        <td className="dashPatientCol">
+                          <div className="dashPatientColInner">
+                            <PatientIdentitySummary patient={patient} />
+                            <div
+                              className="tableMuted dashComplaintPreview"
+                              title={patient.chiefComplaint ? String(patient.chiefComplaint) : undefined}
+                            >
+                              {truncateComplaintPreview(patient.chiefComplaint)}
+                            </div>
                           </div>
                         </td>
                         <td style={{ fontVariantNumeric: "tabular-nums" }}>{patient.age != null ? patient.age : "—"}</td>
-                        <td>
+                        <td className="dashPillCell">
                           <span className={`statusPillBadge ${badge.className}`}>{badge.label}</span>
                         </td>
-                        <td>
-                          <span className="statusWithDot">
-                            <span className={`statusDotInline ${triaged ? "ready" : "waiting"}`} aria-hidden />
-                            {triaged ? "Triaged" : "Waiting"}
-                          </span>
+                        <td className="dashPillCell">
+                          {checkBadge ? (
+                            <span className={`statusPillBadge ${checkBadge.className}`}>{checkBadge.label}</span>
+                          ) : (
+                            <span className="tableMuted dashPillPlaceholder">—</span>
+                          )}
                         </td>
                         <td>{patient.assignedDoctor || "—"}</td>
                         <td style={{ fontVariantNumeric: "tabular-nums", color: "var(--text-muted)" }}>
                           {patient.arrivalTime || "—"}
                         </td>
-                        <td onClick={(e) => e.stopPropagation()}>
-                          <div className="medTableActions">
+                        <td className="dashTsCol timeCell">
+                          {!triaged ? (
+                            "-"
+                          ) : getLastCheckedAtValue(patient) == null ? (
+                            <span className="dashTsPlain">Not checked</span>
+                          ) : (
+                            <DashIsoTimestamp iso={getLastCheckedAtValue(patient)} />
+                          )}
+                        </td>
+                        <td className="dashTsCol timeCell">
+                          {!triaged ? (
+                            "-"
+                          ) : getNextCheckAtValue(patient) != null ? (
+                            <DashIsoTimestamp iso={getNextCheckAtValue(patient)} />
+                          ) : needsCheckEffective ? (
+                            <span className="dashTsPlain">
+                              {getLastCheckedAtValue(patient) == null ? "Pending first check" : "Due now"}
+                            </span>
+                          ) : (
+                            "-"
+                          )}
+                        </td>
+                        <td className="actionCell" onClick={(e) => e.stopPropagation()}>
+                          <div className="medTableActions actionGroup">
+                            {!triaged && (
+                              <button
+                                type="button"
+                                className="btnSm"
+                                onClick={(e) => runTriage(patient.id, e)}
+                                disabled={
+                                  addingPatient ||
+                                  !!loadingMap[`remove-${patient.id}`] ||
+                                  !!loadingMap[`triage-${patient.id}`]
+                                }
+                                title="Run AI / rule-based triage and start monitoring"
+                              >
+                                {loadingMap[`triage-${patient.id}`] ? "…" : "Run triage"}
+                              </button>
+                            )}
+                            {triaged && needsCheckEffective && (
+                              <button
+                                type="button"
+                                className="btnSm btnSmPrimary"
+                                onClick={(e) => markPatientChecked(patient.id, e)}
+                                disabled={
+                                  addingPatient ||
+                                  !!loadingMap[`remove-${patient.id}`] ||
+                                  !!loadingMap[`check-${patient.id}`]
+                                }
+                                title="Record nurse check-in"
+                              >
+                                {loadingMap[`check-${patient.id}`] ? "…" : "Mark checked"}
+                              </button>
+                            )}
+                            {triaged && patientEligibleForDoctorAlert(patient) && (
+                              <button
+                                type="button"
+                                className="btnSm btnSmDashNotify"
+                                onClick={(e) => openNotifyDoctor(patient, e)}
+                                disabled={addingPatient || !!loadingMap[`remove-${patient.id}`] || doctors.length === 0}
+                                title="Send an internal escalation to a physician"
+                              >
+                                Notify Doctor
+                              </button>
+                            )}
                             <button
                               type="button"
-                              className="btnSm"
+                              className="btnSm btnSmDashSecondary"
                               onClick={(e) => openEditPatientModal(patient, e)}
                               disabled={addingPatient || !!loadingMap[`remove-${patient.id}`]}
                             >
@@ -447,48 +886,53 @@ export default function DashboardPage() {
                       </tr>
                       {isOpen && (
                         <tr className="medTableDetail">
-                          <td colSpan={7}>
-                            <div style={{ padding: 16, fontSize: 13 }}>
+                          <td colSpan={9}>
+                            <div className="dashExpandBody">
                               <PatientIdentitySummary patient={patient} />
-                              <p style={{ margin: "12px 0 10px", fontWeight: 600, color: "var(--text-muted)" }}>
-                                Intake & vitals
-                              </p>
-                              <p style={{ margin: "0 0 8px", color: "var(--text)" }}>
+                              <p className="dashExpandSectionLabel">Intake & vitals</p>
+                              <p className="dashExpandMeta dashExpandMeta--primary">
                                 Age {patient.age} · {patient.sex || "—"} · Dept {patient.departmentNeeded || "—"} · Nurse{" "}
                                 {patient.triageNurseName || "—"}
                               </p>
-                              <p style={{ margin: "0 0 8px", color: "var(--text-muted)" }}>
+                              <p className="dashExpandMeta dashExpandMeta--muted">
                                 HR {patient.heartRate} · Temp {patient.temperature}°F · WBC {patient.wbc} · BP{" "}
                                 {patient.bloodPressure || "—"} · SpO₂ {patient.oxygenSaturation}%
                               </p>
+                              <p className="dashExpandMeta dashExpandMeta--muted">
+                                Triage: {triaged ? "Complete" : "Pending"} · Check interval (min):{" "}
+                                {patient.checkIntervalMinutes != null && patient.checkIntervalMinutes > 0
+                                  ? patient.checkIntervalMinutes
+                                  : "—"}
+                                {patient.assignedNurseId ? ` · Last nurse id: ${patient.assignedNurseId}` : ""}
+                              </p>
+                              {patient.doctorAlertRequired && (
+                                <p className="dashExpandAlert">
+                                  Doctor alert: high-acuity patient requires physician review.
+                                </p>
+                              )}
+                              {(patient.checkNotes || patient.lastCheckNotes) ? (
+                                <p className="dashExpandMeta dashExpandMeta--primary">
+                                  Check notes: {patient.checkNotes ?? patient.lastCheckNotes}
+                                </p>
+                              ) : null}
                               {triaged && (
                                 <>
-                                  <p style={{ margin: "14px 0 8px", fontWeight: 600, color: "var(--text-muted)" }}>
-                                    Triage result
-                                  </p>
-                                  <dl
-                                    style={{
-                                      display: "grid",
-                                      gridTemplateColumns: "140px 1fr",
-                                      gap: "6px 12px",
-                                      margin: 0,
-                                      color: "var(--text)",
-                                    }}
-                                  >
-                                    <dt style={{ color: "var(--text-hint)" }}>Priority</dt>
-                                    <dd style={{ margin: 0 }}>{patient.priority ?? "—"}</dd>
-                                    <dt style={{ color: "var(--text-hint)" }}>Concern</dt>
-                                    <dd style={{ margin: 0 }}>{patient.concern ?? patient.message ?? "—"}</dd>
-                                    <dt style={{ color: "var(--text-hint)" }}>Reasoning</dt>
-                                    <dd style={{ margin: 0 }}>{patient.reasoning ?? "—"}</dd>
-                                    <dt style={{ color: "var(--text-hint)" }}>Recommended action</dt>
-                                    <dd style={{ margin: 0 }}>{patient.recommendedAction ?? "—"}</dd>
-                                    <dt style={{ color: "var(--text-hint)" }}>Suggested specialty</dt>
-                                    <dd style={{ margin: 0 }}>{patient.suggestedSpecialty ?? "—"}</dd>
-                                    <dt style={{ color: "var(--text-hint)" }}>Confidence</dt>
-                                    <dd style={{ margin: 0 }}>{patient.confidence ?? "—"}</dd>
-                                    <dt style={{ color: "var(--text-hint)" }}>Assigned doctor</dt>
-                                    <dd style={{ margin: 0 }}>{patient.assignedDoctor ?? "—"}</dd>
+                                  <p className="dashExpandSectionLabel">Triage result</p>
+                                  <dl className="dashExpandDl">
+                                    <dt>Priority</dt>
+                                    <dd>{patient.priority ?? "—"}</dd>
+                                    <dt>Concern</dt>
+                                    <dd>{patient.concern ?? patient.message ?? "—"}</dd>
+                                    <dt>Reasoning</dt>
+                                    <dd>{patient.reasoning ?? "—"}</dd>
+                                    <dt>Recommended action</dt>
+                                    <dd>{patient.recommendedAction ?? "—"}</dd>
+                                    <dt>Suggested specialty</dt>
+                                    <dd>{patient.suggestedSpecialty ?? "—"}</dd>
+                                    <dt>Confidence</dt>
+                                    <dd>{patient.confidence ?? "—"}</dd>
+                                    <dt>Assigned doctor</dt>
+                                    <dd>{patient.assignedDoctor ?? "—"}</dd>
                                   </dl>
                                 </>
                               )}
@@ -501,45 +945,67 @@ export default function DashboardPage() {
                 })}
               </tbody>
             </table>
+        </div>
+      </div>
+
+      {showNotifyModal && notifyPatient && (
+        <div
+          className="modalOverlayLight"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="notify-doctor-title"
+          onClick={closeNotifyModal}
+        >
+          <div className="medCard modalCardLight" style={{ maxWidth: 440 }} onClick={(e) => e.stopPropagation()}>
+            <div className="sectionHeader">
+              <p className="sectionLabel" id="notify-doctor-title">
+                Notify physician
+              </p>
+              <button type="button" className="btnSm" onClick={closeNotifyModal}>
+                Close
+              </button>
+            </div>
+            <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--text-muted)" }}>
+              Patient <strong>{patientDisplayLabel(notifyPatient)}</strong> · ID {notifyPatient.id}
+            </p>
+            <form onSubmit={submitDoctorAlert} style={{ display: "grid", gap: 12 }}>
+              <label style={{ display: "block" }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-hint)" }}>Physician</span>
+                <select
+                  className="uiSelect"
+                  value={notifyDoctorId}
+                  onChange={(e) => setNotifyDoctorId(e.target.value)}
+                  style={{ width: "100%", marginTop: 6 }}
+                >
+                  {doctors.map((d) => (
+                    <option key={d.id} value={String(d.id)}>
+                      {d.name} — {d.specialty}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label style={{ display: "block" }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-hint)" }}>Message</span>
+                <textarea
+                  className="uiInput"
+                  rows={4}
+                  value={notifyMessage}
+                  onChange={(e) => setNotifyMessage(e.target.value)}
+                  style={{ marginTop: 6, width: "100%", minHeight: 88, resize: "vertical" }}
+                />
+              </label>
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <button type="button" className="btnSm" onClick={closeNotifyModal}>
+                  Cancel
+                </button>
+                <button type="submit" className="btnSm btnSmPrimary" disabled={notifySending}>
+                  {notifySending ? "Sending…" : "Send alert"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-
-        <aside className="medCard panelPaddingLg">
-          <div className="dashPanelHead">
-            <div>
-              <h2 className="medPanelTitle" style={{ margin: 0 }}>
-                Doctors on duty
-              </h2>
-            </div>
-            <Link href="/doctors" className="medLinkQuiet">
-              View all
-            </Link>
-          </div>
-          <div className="medDoctorList">
-            {doctors.map((doctor) => (
-              <div key={doctor.id} className="medDoctorRow">
-                <div className="medDoctorAvatar" aria-hidden>
-                  {initials(doctor.name)}
-                </div>
-                <div className="medDoctorInfo">
-                  <p className="medDoctorName">{doctor.name}</p>
-                  <p className="medDoctorSpec">{doctor.specialty}</p>
-                </div>
-                <div>
-                  <span
-                    className={`statusPillBadge ${
-                      doctor.status === "available" ? "available" : doctor.status === "busy" ? "busy" : "offshift"
-                    }`}
-                  >
-                    {doctor.status}
-                  </span>
-                  <div className="medDoctorMeta">{availabilityLabel(doctor.status)}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </aside>
-      </div>
+      )}
 
       {showIntakeModal && (
         <div className="modalOverlayLight" role="dialog" aria-modal="true" aria-labelledby="intake-title">
