@@ -1,145 +1,201 @@
-# 🏥 TriageOS  
-**AI-assisted hospital triage operations dashboard**  
-Fast, structured intake. Clear priorities. Real-time staffing visibility.
+# TriageOS
+
+**AI-assisted hospital triage operations dashboard**
+
+Fast patient intake, clearer priorities, and real-time doctor availability in one place.
 
 ---
 
-## 🚨 The Problem
-In busy care environments, critical information is scattered:
-- Patient intake details live in one place  
-- Triage urgency in another  
-- Provider availability somewhere else  
+## The idea
 
-This fragmentation slows down decision-making when speed matters most.
+In busy care environments, important information is often split across different systems or screens.  
+Patient intake, urgency, and provider availability are not always easy to see together, and that slows things down when time matters most.
 
----
-
-## 💡 The Solution
-**TriageOS** brings everything into one unified operational dashboard:
-- Capture patient intake + vitals  
-- Generate triage guidance instantly  
-- Monitor doctor availability  
-- Manage patient queue in real time  
-
-**One screen. Clear decisions.**
+**TriageOS** brings everything into one unified dashboard so staff can move faster and make clearer decisions.
 
 ---
 
-## ⚙️ What It Does
-- 🧑‍⚕️ Nurse login with JWT session (bootstrap demo account from config / `.env`)  
-- 📋 Patient queue dashboard with expandable clinical details  
-- ➕ Add / remove patient intake records; update a patient with `PUT`  
-- 👨‍⚕️ Doctor roster: live availability, **add** / **remove** physicians (roster is in-memory until the backend restarts)  
-- 🧠 AI-assisted triage output:
-  - Priority  
-  - Concern  
-  - Reasoning  
-  - Recommended action  
-  - Specialty  
-  - Confidence score  
-- ⚡ Auto-loaded demo dataset for instant showcase  
+## What it does
+
+- Secure nurse login with JWT authentication  
+- Add, update, and remove patient intake records  
+- View a live patient queue with clinical details  
+- Generate AI-assisted triage guidance  
+- Track doctor availability in real time  
+- Add and remove doctors from the roster  
+- View dashboard summary metrics  
+- Auto-load demo data for quick testing  
 
 ---
 
-## 🧱 Tech Stack
+## AI-assisted triage output
+
+Each patient can include:
+
+- Priority  
+- Main concern  
+- Reasoning  
+- Recommended action  
+- Suggested specialty  
+- Confidence score  
+
+---
+
+## Tech stack
 
 ### Frontend
 - Next.js  
 - React  
-- Custom CSS (`frontend/styles/globals.css`)  
+- Custom CSS  
 
 ### Backend
 - Spring Boot (Java 17)  
 - Maven  
-- Spring Data JPA with **H2** (in-memory DB) for **patients** and **nurse accounts**  
-- In-memory **doctor** roster (fast to reset; survives until the JVM restarts)  
+- Spring Data JPA  
+- H2 (in-memory database)  
 
 ### Data
-- CSV-based dataset loader (`data/`)  
-- Backend utilities for demo imports  
+- CSV-based demo dataset loader  
+- In-memory doctor roster (resets on restart)  
 
 ---
 
-## 🏗️ Architecture (High-Level)
+## How it works
 
-- **Frontend (`frontend/`)**  
-  UI pages: `dashboard`, `doctors`, `nurse-login`  
-  Shared layout + reusable components  
-
-- **Backend (`backend/`)**  
-  REST APIs for:
-  - Patients  
-  - Doctors  
-  - Dashboard metrics  
-  - Triage service  
-
-### 🔄 Triage Flow
-1. Patient intake is submitted  
+1. Patient intake is created  
 2. Triage service runs  
-   - AI-assisted logic  
-   - Rule-based fallback  
-3. Result is attached to the patient record  
-4. Output is displayed in the dashboard  
+3. AI-assisted logic generates guidance  
+4. Rule-based fallback supports the flow  
+5. Result is attached to the patient record  
+6. Dashboard updates in real time  
 
 ---
 
-## 🔌 Core API Endpoints
+## Project structure
 
-Most routes require a **Bearer JWT** from nurse login (`Authorization: Bearer <token>`). Exceptions are called out below.
+### `frontend/`
+- dashboard UI  
+- doctors page  
+- nurse login  
+- shared components  
+
+### `backend/`
+REST APIs for:
+- patients  
+- doctors  
+- dashboard metrics  
+- triage  
+- authentication  
+
+---
+
+## Core API endpoints
+
+Most routes require a Bearer JWT.
 
 ### Nurse auth
+- `POST /api/auth/nurse/login` — login and receive JWT  
+- `GET /api/auth/nurse/me` — get current nurse  
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST   | `/api/auth/nurse/login` | Body: `{ "username", "password" }` — returns JWT (**no auth required**) |
-| GET    | `/api/auth/nurse/me` | Current nurse profile (**JWT required**) |
+### Patients
+- `GET /patients` — list patients  
+- `POST /patients` — create patient  
+- `GET /patients/{id}` — get patient  
+- `PUT /patients/{id}` — update patient  
+- `DELETE /patients/{id}` — remove patient  
+- `POST /patients/{id}/triage` — run triage  
 
-### Patients & triage
+### Doctors
+- `GET /doctors` — list doctors  
+- `POST /doctors` — add doctor  
+- `PATCH /doctors/{id}/status` — update availability  
+- `DELETE /doctors/{id}` — remove doctor  
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET    | `/patients` | List all patients |
-| POST   | `/patients` | Create patient intake |
-| GET    | `/patients/{id}` | Get one patient |
-| PUT    | `/patients/{id}` | Update intake |
-| DELETE | `/patients/{id}` | Remove patient |
-| POST   | `/patients/{id}/triage` | Run/update triage |
-
-### Doctors & dashboard
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET    | `/doctors` | List doctors |
-| POST   | `/doctors` | Add doctor — body: `{ "name", "specialty", "status"? }` (defaults to `available`) |
-| PATCH  | `/doctors/{id}/status` | Update availability |
-| DELETE | `/doctors/{id}` | Remove doctor from roster |
-| GET    | `/dashboard/summary` | Dashboard metrics |
-
-### Optional: create nurse accounts (admin key)
-
-If `triageos.admin.nurse-create-key` is set (repo-root `.env` or `application.properties`), you can register nurses with:
-
-`POST /api/admin/nurses` — header **`X-Admin-Key`**: same value as the configured key; body: `{ "username", "password", "displayName" }`. If the key is unset, this endpoint returns **404**.
+### Dashboard
+- `GET /dashboard/summary` — metrics  
 
 ---
 
-## 🖥️ Local Setup
+## Optional admin route
 
-**Environment files (recommended)**  
-- Copy **`.env.example`** to **`.env`** at the **repository root** so the backend can load secrets and bootstrap values (see `BackendApplication` / `application.properties`).  
-- Copy **`frontend/.env.example`** to **`frontend/.env.local`** if you need a non-default API URL (`NEXT_PUBLIC_API_BASE`, default `http://localhost:8080`).
+If `triageos.admin.nurse-create-key` is set in `.env`:
 
-**Default demo nurse** (unless you override in `.env`): username **`10004567`**, password **`nurse`** — sign in at **`http://localhost:3000/nurse-login`** before using the dashboard or doctors pages.
+- `POST /api/admin/nurses`
+
+Header:
+```
+X-Admin-Key: <your key>
+```
+
+Body:
+```json
+{
+  "username": "example",
+  "password": "example",
+  "displayName": "Example Nurse"
+}
+```
+
+If not set, this endpoint returns `404`.
+
+---
+
+## Local setup
+
+### 1. Environment files
 
 ```bash
-# 1. Start backend
+cp .env.example .env
+cp frontend/.env.example frontend/.env.local
+```
+
+---
+
+### 2. Demo login
+
+- Username: `10004567`  
+- Password: `nurse`  
+
+Login at:  
+http://localhost:3000/nurse-login  
+
+---
+
+### 3. Start backend
+
+```bash
 cd backend
 mvn spring-boot:run
-# → http://localhost:8080
+```
 
-# 2. Start frontend
-cd ../frontend
+Backend:  
+http://localhost:8080  
+
+---
+
+### 4. Start frontend
+
+```bash
+cd frontend
 npm install
 npm run dev
-# → http://localhost:3000
 ```
+
+Frontend:  
+http://localhost:3000  
+
+---
+
+## Demo notes
+
+- Patients and nurses use H2 in-memory storage  
+- Doctor roster is in-memory (resets on restart)  
+- Demo data is auto-loaded  
+
+---
+
+## Why We built this
+
+TriageOS was built to explore how AI-assisted workflows can support faster decision-making in hospital operations, especially during patient intake and staff coordination.
+
+---
