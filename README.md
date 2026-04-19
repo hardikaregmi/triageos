@@ -151,14 +151,15 @@ cp frontend/.env.example frontend/.env.local
 
 ---
 
-### 2. Demo login
+## Demo access
+
+To quickly try the app, use the default nurse account:
 
 - Username: `10004567`  
 - Password: `nurse`  
 
-Login at:  
-http://localhost:3000/nurse-login  
-
+Then open:  
+http://localhost:3000/nurse-login
 ---
 
 ### 3. Start backend
