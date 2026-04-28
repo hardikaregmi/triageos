@@ -62,25 +62,13 @@ For each patient, the system can generate:
 cp .env.example .env
 cp frontend/.env.example frontend/.env.local
 
----
-
-### Start frontend and backend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-```bash
+# Start Backend
 cd backend
 mvn spring-boot:run
-```
+# Runs on http://localhost:8080
 
-Frontend:  
-http://localhost:3000  
-
-Backend:  
-http://localhost:8080  
-
----
+# Start Frontend
+cd ../frontend
+npm install
+npm run dev
+# Runs on http://localhost:3000
