@@ -72,15 +72,13 @@ npm install
 npm run dev
 ```
 
-Frontend:  
-http://localhost:3000  
-
----
-
 ```bash
 cd backend
 mvn spring-boot:run
 ```
+
+Frontend:  
+http://localhost:3000  
 
 Backend:  
 http://localhost:8080  
