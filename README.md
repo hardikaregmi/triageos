@@ -64,19 +64,7 @@ cp frontend/.env.example frontend/.env.local
 
 ---
 
-### Start backend
-
-```bash
-cd backend
-mvn spring-boot:run
-```
-
-Backend:  
-http://localhost:8080  
-
----
-
-### 4. Start frontend
+### Start frontend and backend
 
 ```bash
 cd frontend
@@ -86,5 +74,15 @@ npm run dev
 
 Frontend:  
 http://localhost:3000  
+
+---
+
+```bash
+cd backend
+mvn spring-boot:run
+```
+
+Backend:  
+http://localhost:8080  
 
 ---
